@@ -2,4 +2,3 @@ LIBRARY DINPUT8
 
 EXPORTS
 	DirectInput8Create
-	MyDebugBreak

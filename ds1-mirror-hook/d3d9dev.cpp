@@ -15,38 +15,7 @@ bool hudStarted = false;
 bool capture = false;
 bool renderFinished = false;
 
-hkIDirect3DDevice9::hkIDirect3DDevice9(IDirect3DDevice9* pReturnedDeviceInterface, D3DPRESENT_PARAMETERS* pPresentParam, IDirect3D9* pIDirect3D9) {
-	m_pD3Ddev = pReturnedDeviceInterface;
-	m_PresentParam = *pPresentParam;
-	m_pD3Dint = pIDirect3D9;
-
-}
-
-HRESULT APIENTRY hkIDirect3DDevice9::Present(CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion) {
-	//Log << "Present" << LogEndl::INFO;
-	nrts = 0;
-	ndps = 0;
-	mainRTuses = 0;
-	mainRT = nullptr;
-	flippedRT = false;
-	hudStarted = false;
-	renderFinished = false;
-	frames++;
-	if (std::filesystem::exists("C:\\Users\\Connor\\capture"))
-	{
-		Log << "Start capture" << LogEndl::INFO;
-		std::filesystem::remove("C:\\Users\\Connor\\capture");
-		capture = true;
-	}
-	else {
-		capture = false;
-	}
-	return m_pD3Ddev->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-}
-
-HRESULT APIENTRY hkIDirect3DDevice9::SetVertexShaderConstantF(UINT StartRegister, CONST float* pConstantData, UINT Vector4fCount) {
-	return m_pD3Ddev->SetVertexShaderConstantF(StartRegister, pConstantData, Vector4fCount);
-}
+IDirect3DDevice9* g_pD3Ddev = nullptr;
 
 LPD3DXEFFECT flipEffect = nullptr;
 LPD3DXBUFFER flipErrors = nullptr;
@@ -64,121 +33,150 @@ IDirect3DVertexDeclaration9* vertexDeclaration = nullptr;
 IDirect3DVertexDeclaration9* prevVDecl = nullptr;
 IDirect3DStateBlock9* prevStateBlock = nullptr;
 
+render_frame_t renderFunc = (render_frame_t)0x00d81140;
+
+void __stdcall MyRenderFrame(int unk)
+{
+	// one parameter is passed via edi, so make sure injected code doesn't overwrite it
+	int edi_bak1, edi_bak2;
+	_asm
+	{
+		mov edi_bak1, edi
+	}
+
+	HRESULT hr;
+
+	IDirect3DSurface9* renderTarget = nullptr;
+	hr = g_pD3Ddev->GetRenderTarget(0, &renderTarget);
+	if (hr != D3D_OK) Log << frames << ": GetRenderTarget failed: " << hr << LogEndl::ERRO;
+
+	IDirect3DTexture9* renderTexture = nullptr;
+	hr = renderTarget->GetContainer(IID_IDirect3DTexture9, (void**)&renderTexture);
+	if (hr != D3D_OK) Log << frames << ": GetContainer failed: " << hr << LogEndl::ERRO;
+
+	D3DSURFACE_DESC desc;
+	hr = renderTarget->GetDesc(&desc);
+	if (hr != D3D_OK) Log << frames << ": GetDesc failed: " << hr << LogEndl::ERRO;
+
+	if (!flippedTexture)
+	{
+		hr = g_pD3Ddev->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, desc.Format, desc.Pool, &flippedTexture, NULL);
+		if (hr != D3D_OK) Log << frames << ": CreateTexture failed: " << hr << LogEndl::ERRO;
+
+		hr = flippedTexture->GetSurfaceLevel(0, &flippedSurface);
+		if (hr != D3D_OK) Log << frames << ": GetSurfaceLevel failed: " << hr << LogEndl::ERRO;
+	}
+
+	if (!flipEffect)
+	{
+		hr = D3DXCreateEffectFromFile(g_pD3Ddev, L"flip.fx", nullptr, NULL, D3DXFX_NOT_CLONEABLE | D3DXSHADER_OPTIMIZATION_LEVEL3, NULL, &flipEffect, &flipErrors);
+		if (hr != D3D_OK) Log << frames << ": D3DXCreateEffectFromFile failed: " << flipErrors->GetBufferPointer() << LogEndl::ERRO;
+	}
+
+	if (!vertexDeclaration)
+	{
+		hr = g_pD3Ddev->CreateVertexDeclaration(vertexElements, &vertexDeclaration);
+		if (hr != D3D_OK) Log << frames << ": CreateVertexDeclaration failed: " << hr << LogEndl::ERRO;
+	}
+
+	if (!prevStateBlock)
+	{
+		g_pD3Ddev->CreateStateBlock(D3DSBT_ALL, &prevStateBlock);
+	}
+
+	hr = g_pD3Ddev->SetRenderTarget(0, flippedSurface);
+	if (hr != D3D_OK) Log << frames << ": SetRenderTarget failed: " << hr << LogEndl::ERRO;
+
+	_asm
+	{
+		mov edi_bak2, edi
+		mov edi, edi_bak1
+	}
+	renderFunc(unk);
+	_asm
+	{
+		mov edi_bak1, edi
+		mov edi, edi_bak2
+	}
+
+	prevStateBlock->Capture();
+	g_pD3Ddev->GetVertexDeclaration(&prevVDecl);
+
+	g_pD3Ddev->SetVertexDeclaration(vertexDeclaration);
+	g_pD3Ddev->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+	g_pD3Ddev->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE);
+
+	hr = g_pD3Ddev->SetRenderTarget(0, renderTarget);
+	if (hr != D3D_OK) Log << frames << ": SetRenderTarget failed: " << hr << LogEndl::ERRO;
+
+	D3DXHANDLE frameTexHandle = flipEffect->GetParameterByName(NULL, "frameTex2D");
+	hr = flipEffect->SetTexture(frameTexHandle, flippedTexture);
+	if (hr != D3D_OK) Log << frames << ": SetTexture failed: " << hr << LogEndl::ERRO;
+
+	D3DXVECTOR2 pixelSize = D3DXVECTOR2(1.0f / float(desc.Width), 1.0f / float(desc.Height));
+	float quad[3][5] = {
+		{ -1.0f - pixelSize.x,  1.0f + pixelSize.y, 0.5f, 0.0f, 0.0f },
+		{ -1.0f - pixelSize.x, -3.0f + pixelSize.y, 0.5f, 0.0f, 2.0f },
+		{  3.0f - pixelSize.x,  1.0f + pixelSize.y, 0.5f, 2.0f, 0.0f }
+	};
+
+	UINT passes;
+	hr = flipEffect->Begin(&passes, 0);
+	if (hr != D3D_OK) Log << frames << ": Begin failed: " << hr << LogEndl::ERRO;
+	hr = flipEffect->BeginPass(0);
+	if (hr != D3D_OK) Log << frames << ": BeginPass failed: " << hr << LogEndl::ERRO;
+	hr = g_pD3Ddev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, quad, sizeof(quad[0]));
+	if (hr != D3D_OK) Log << frames << ": DrawPrimitiveUP failed: " << hr << LogEndl::ERRO;
+	hr = flipEffect->EndPass();
+	if (hr != D3D_OK) Log << frames << ": EndPass failed: " << hr << LogEndl::ERRO;
+	hr = flipEffect->End();
+	if (hr != D3D_OK) Log << frames << ": End failed: " << hr << LogEndl::ERRO;
+
+
+	g_pD3Ddev->SetVertexDeclaration(prevVDecl);
+	prevStateBlock->Apply();
+
+	prevVDecl->Release();
+	renderTarget->Release();
+	renderTexture->Release();
+
+	_asm
+	{
+		mov edi, edi_bak1
+	}
+}
+
+hkIDirect3DDevice9::hkIDirect3DDevice9(IDirect3DDevice9* pReturnedDeviceInterface, D3DPRESENT_PARAMETERS* pPresentParam, IDirect3D9* pIDirect3D9) {
+	m_pD3Ddev = pReturnedDeviceInterface;
+	g_pD3Ddev = pReturnedDeviceInterface;
+	m_PresentParam = *pPresentParam;
+	m_pD3Dint = pIDirect3D9;
+
+}
+
+HRESULT APIENTRY hkIDirect3DDevice9::Present(CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion) {
+	//Log << "Present" << LogEndl::INFO;
+	frames++;
+	if (std::filesystem::exists("C:\\Users\\Connor\\capture"))
+	{
+		Log << "Start capture" << LogEndl::INFO;
+		std::filesystem::remove("C:\\Users\\Connor\\capture");
+		capture = true;
+	}
+	else {
+		capture = false;
+	}
+
+	return m_pD3Ddev->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+}
+
+HRESULT APIENTRY hkIDirect3DDevice9::SetVertexShaderConstantF(UINT StartRegister, CONST float* pConstantData, UINT Vector4fCount) {
+	return m_pD3Ddev->SetVertexShaderConstantF(StartRegister, pConstantData, Vector4fCount);
+}
+
+
+
 HRESULT APIENTRY hkIDirect3DDevice9::SetRenderTarget(DWORD RenderTargetIndex, IDirect3DSurface9* pRenderTarget) {
-	nrts++;
-	if (nrts == 1)
-	{
-		mainRT = pRenderTarget;
-	}
-	
-
-	if (false && capture)
-	{
-		IDirect3DSurface9* oldRenderTarget;
-		HRESULT hr = m_pD3Ddev->GetRenderTarget(0, &oldRenderTarget);
-		if (hr == D3D_OK && oldRenderTarget)
-		{
-			std::wstringstream ss;
-			ss << L"capture\\" << std::setfill(L'0') << std::setw(6) << nrts << L".png";
-			D3DSURFACE_DESC desc;
-			oldRenderTarget->GetDesc(&desc);
-			IDirect3DSurface9* convertedSurface;
-			m_pD3Ddev->CreateRenderTarget(desc.Width, desc.Height, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE, 0, true, &convertedSurface, NULL);
-			D3DXLoadSurfaceFromSurface(convertedSurface, NULL, NULL, oldRenderTarget, NULL, NULL, D3DX_FILTER_POINT, 0);
-			D3DXSaveSurfaceToFile(ss.str().c_str(), D3DXIFF_PNG, convertedSurface, NULL, NULL);
-			convertedSurface->Release();
-			Log << "nrt: " << std::dec << nrts << "; rt: 0x" << std::hex << oldRenderTarget << "; rti: " << std::dec << RenderTargetIndex << LogEndl::INFO;
-		}
-	}
-
-	if (renderFinished && !flippedRT) { // we just finished rendering the frame (pre-HUD)
-		HRESULT hr = D3D_OK;
-
-
-		if (!prevStateBlock)
-		{
-			m_pD3Ddev->CreateStateBlock(D3DSBT_ALL, &prevStateBlock);
-		}
-
-		IDirect3DSurface9* oldRenderTarget;
-		hr = m_pD3Ddev->GetRenderTarget(0, &oldRenderTarget);
-		if (hr != D3D_OK) Log << frames << ": GetRenderTarget failed: " << hr << LogEndl::ERRO;
-
-		IDirect3DTexture9* oldRenderTexture;
-		hr = oldRenderTarget->GetContainer(IID_IDirect3DTexture9, (void**)&oldRenderTexture);
-		if (hr != D3D_OK) Log << frames << ": GetContainer failed: " << hr << LogEndl::ERRO;
-
-		D3DSURFACE_DESC desc;
-		hr = oldRenderTarget->GetDesc(&desc);
-		if (hr != D3D_OK) Log << frames << ": GetDesc failed: " << hr << LogEndl::ERRO;
-
-
-		if (!flippedTexture)
-		{
-			hr = m_pD3Ddev->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, desc.Format, desc.Pool, &flippedTexture, NULL);
-			if (hr != D3D_OK) Log << frames << ": CreateTexture failed: " << hr << LogEndl::ERRO;
-
-			hr = flippedTexture->GetSurfaceLevel(0, &flippedSurface);
-			if (hr != D3D_OK) Log << frames << ": GetSurfaceLevel failed: " << hr << LogEndl::ERRO;
-		}
-
-		if (!flipEffect)
-		{
-			hr = D3DXCreateEffectFromFile(m_pD3Ddev, L"flip.fx", nullptr, NULL, D3DXFX_NOT_CLONEABLE | D3DXSHADER_OPTIMIZATION_LEVEL3, NULL, &flipEffect, &flipErrors);
-			if (hr != D3D_OK) Log << frames << ": D3DXCreateEffectFromFile failed: " << flipErrors->GetBufferPointer() << LogEndl::ERRO;
-		}
-
-		if (!vertexDeclaration)
-		{
-			hr = m_pD3Ddev->CreateVertexDeclaration(vertexElements, &vertexDeclaration);
-			if (hr != D3D_OK) Log << frames << ": CreateVertexDeclaration failed: " << hr << LogEndl::ERRO;
-		}
-
-		prevStateBlock->Capture();
-		m_pD3Ddev->GetVertexDeclaration(&prevVDecl);
-
-		m_pD3Ddev->SetVertexDeclaration(vertexDeclaration);
-		m_pD3Ddev->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
-		m_pD3Ddev->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE);
-
-		hr = m_pD3Ddev->SetRenderTarget(0, flippedSurface);
-		if (hr != D3D_OK) Log << frames << ": SetRenderTarget failed: " << hr << LogEndl::ERRO;
-
-		D3DXHANDLE frameTexHandle = flipEffect->GetParameterByName(NULL, "frameTex2D");
-		hr = flipEffect->SetTexture(frameTexHandle, oldRenderTexture);
-		if (hr != D3D_OK) Log << frames << ": SetTexture failed: " << hr << LogEndl::ERRO;
-
-		D3DXVECTOR2 pixelSize = D3DXVECTOR2(1.0f / float(desc.Width), 1.0f / float(desc.Height));
-		float quad[3][5] = {
-			{ -1.0f - pixelSize.x,  1.0f + pixelSize.y, 0.5f, 0.0f, 0.0f },
-			{ -1.0f - pixelSize.x, -3.0f + pixelSize.y, 0.5f, 0.0f, 2.0f },
-			{  3.0f - pixelSize.x,  1.0f + pixelSize.y, 0.5f, 2.0f, 0.0f }
-		};
-
-		UINT passes;
-		hr = flipEffect->Begin(&passes, 0);
-		if (hr != D3D_OK) Log << frames << ": Begin failed: " << hr << LogEndl::ERRO;
-		hr = flipEffect->BeginPass(0);
-		if (hr != D3D_OK) Log << frames << ": BeginPass failed: " << hr << LogEndl::ERRO;
-		hr = m_pD3Ddev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, quad, sizeof(quad[0]));
-		if (hr != D3D_OK) Log << frames << ": DrawPrimitiveUP failed: " << hr << LogEndl::ERRO;
-		hr = flipEffect->EndPass();
-		if (hr != D3D_OK) Log << frames << ": EndPass failed: " << hr << LogEndl::ERRO;
-		hr = flipEffect->End();
-		if (hr != D3D_OK) Log << frames << ": End failed: " << hr << LogEndl::ERRO;
-
-		hr = m_pD3Ddev->StretchRect(flippedSurface, nullptr, oldRenderTarget, nullptr, D3DTEXF_NONE);
-		if (hr != D3D_OK) Log << frames << ": StretchRect failed: " << hr << LogEndl::ERRO;
-
-		m_pD3Ddev->SetVertexDeclaration(prevVDecl);
-		prevStateBlock->Apply();
-
-		prevVDecl->Release();
-		oldRenderTarget->Release();
-		oldRenderTexture->Release();
-		flippedRT = true;
-	}
-
 	return m_pD3Ddev->SetRenderTarget(RenderTargetIndex, pRenderTarget);
 }
 
@@ -207,65 +205,6 @@ struct hud_text_vert {
 };
 
 HRESULT APIENTRY hkIDirect3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinIndex, UINT NumVertices, UINT PrimitiveCount, CONST void* pIndexData, D3DFORMAT IndexDataFormat, CONST void* pVertexStreamZeroData, UINT VertexStreamZeroStride) {
-	if (renderFinished && capture)
-	{
-		IDirect3DSurface9* oldRenderTarget;
-		HRESULT hr = m_pD3Ddev->GetRenderTarget(0, &oldRenderTarget);
-		if (hr == D3D_OK && oldRenderTarget)
-		{
-			std::wstringstream ss;
-			ss << L"capture\\" << std::setfill(L'0') << std::setw(5) << std::dec << nrts << L"_" << std::setfill(L'0') << std::setw(5) << ndps << L".png";
-			D3DSURFACE_DESC desc;
-			oldRenderTarget->GetDesc(&desc);
-			IDirect3DSurface9* convertedSurface;
-			m_pD3Ddev->CreateRenderTarget(desc.Width, desc.Height, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE, 0, true, &convertedSurface, NULL);
-			D3DXLoadSurfaceFromSurface(convertedSurface, NULL, NULL, oldRenderTarget, NULL, NULL, D3DX_FILTER_POINT, 0);
-			D3DXSaveSurfaceToFile(ss.str().c_str(), D3DXIFF_PNG, convertedSurface, NULL, NULL);
-			convertedSurface->Release();
-			Log << "rt: 0x" << std::hex << oldRenderTarget << "; nrt: " << std::dec << nrts << "; ndps: " << std::dec << ndps << "; DrawIndexedPrimitiveUP: PrimitiveType: " << PrimitiveType << "; " << "PrimitiveCount: " << PrimitiveCount << "; VertexStreamZeroStride: " << VertexStreamZeroStride;
-
-			/*
-			if (PrimitiveType == D3DPT_TRIANGLEFAN && PrimitiveCount == 2 && VertexStreamZeroStride == 12)
-			{
-				Log << "\n";
-				struct hud_vert* verts = (struct hud_vert*)pVertexStreamZeroData;
-				for (int i = 0; i < 4; i++)
-				{
-					Log << "v" << i << ": (" << verts[i].x << ", " << verts[i].y << ")";
-					if (i < 3) Log << "\n";
-				}
-			}
-			
-			IDirect3DVertexDeclaration9 *vdecl;
-			m_pD3Ddev->GetVertexDeclaration(&vdecl);
-			D3DVERTEXELEMENT9 decl[MAXD3DDECLLENGTH];
-			UINT numElements;
-			HRESULT hr = vdecl->GetDeclaration(decl, &numElements);
-			Log << "\n";
-			for (int i = 0; i < numElements; i++)
-			{
-				Log << "Usage: " << (int)decl[i].Usage << "; Type: " << (int)decl[i].Type << "; Offset: " << (int)decl[i].Offset;
-				if (i < numElements - 1) Log << "\n";
-			}
-			*/
-			Log << LogEndl::INFO;
-		}
-		ndps++;
-	}
-
-	if (renderFinished)
-	{
-		if (PrimitiveType == D3DPT_TRIANGLEFAN && PrimitiveCount == 2 && VertexStreamZeroStride == 12)
-		{
-			struct hud_vert modifiedVerts[4];
-			memcpy(modifiedVerts, pVertexStreamZeroData, sizeof(modifiedVerts));
-			for (int i = 0; i < 4; i++)
-			{
-				modifiedVerts[i].x = (8 * 1280) - modifiedVerts[i].x;
-			}
-			return m_pD3Ddev->DrawIndexedPrimitiveUP(PrimitiveType, MinIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, modifiedVerts, VertexStreamZeroStride);
-		}
-	}
 	return m_pD3Ddev->DrawIndexedPrimitiveUP(PrimitiveType, MinIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 
@@ -274,83 +213,7 @@ HRESULT APIENTRY hkIDirect3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveTyp
 }
 
 HRESULT APIENTRY hkIDirect3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, CONST void* pVertexStreamZeroData, UINT VertexStreamZeroStride) {
-	if (PrimitiveType == D3DPT_TRIANGLEFAN && PrimitiveCount == 2 && VertexStreamZeroStride == 24)
-	{
-		IDirect3DSurface9* currentRenderTarget;
-		HRESULT hr = m_pD3Ddev->GetRenderTarget(0, &currentRenderTarget);
-		if (hr == D3D_OK && mainRT && currentRenderTarget == mainRT)
-		{
-			if (mainRTuses == 2)
-			{
-				renderFinished = true;
-			}
-			mainRTuses++;
-		}
-	}
-	if (renderFinished && capture)
-	{
-		if (ndps == 13)
-		{
-			MyDebugBreak();
-		}
-		IDirect3DSurface9* oldRenderTarget;
-		HRESULT hr = m_pD3Ddev->GetRenderTarget(0, &oldRenderTarget);
-		if (hr == D3D_OK && oldRenderTarget)
-		{
-			std::wstringstream ss;
-			ss << L"capture\\" << std::setfill(L'0') << std::setw(5) << std::dec << nrts << L"_" << std::setfill(L'0') << std::setw(5) << ndps << L".png";
-			D3DSURFACE_DESC desc;
-			oldRenderTarget->GetDesc(&desc);
-			IDirect3DSurface9* convertedSurface;
-			m_pD3Ddev->CreateRenderTarget(desc.Width, desc.Height, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE, 0, true, &convertedSurface, NULL);
-			D3DXLoadSurfaceFromSurface(convertedSurface, NULL, NULL, oldRenderTarget, NULL, NULL, D3DX_FILTER_POINT, 0);
-			D3DXSaveSurfaceToFile(ss.str().c_str(), D3DXIFF_PNG, convertedSurface, NULL, NULL);
-			convertedSurface->Release();
-			Log << "rt: 0x" << std::hex << oldRenderTarget << "; nrt: " << std::dec << nrts << "; ndps: " << std::dec << ndps << "; DrawPrimitiveUP: PrimitiveType: " << PrimitiveType << "; " << "PrimitiveCount: " << PrimitiveCount << "; VertexStreamZeroStride: " << VertexStreamZeroStride;
-		}
 
-		/*
-		if (PrimitiveType == D3DPT_TRIANGLELIST && VertexStreamZeroStride == 24)
-		{
-			Log << "\n";
-			struct hud_text_vert* verts = (struct hud_text_vert*)pVertexStreamZeroData;
-			for (int i = 0; i < 6; i++)
-			{
-				Log << "v" << i << ": (" << verts[i].x << ", " << verts[i].y << ", " << verts[i].z << ")";
-				if (i < 5) Log << "\n";
-			}
-		}
-
-		IDirect3DVertexDeclaration9* vdecl;
-		m_pD3Ddev->GetVertexDeclaration(&vdecl);
-		D3DVERTEXELEMENT9 decl[MAXD3DDECLLENGTH];
-		UINT numElements;
-		hr = vdecl->GetDeclaration(decl, &numElements);
-		Log << "\n";
-		for (int i = 0; i < numElements; i++)
-		{
-			Log << "Usage: " << (int)decl[i].Usage << "; Type: " << (int)decl[i].Type << "; Offset: " << (int)decl[i].Offset;
-			if (i < numElements - 1) Log << "\n";
-		}
-		*/
-		Log << LogEndl::INFO;
-		ndps++;
-	}
-
-	if (renderFinished)
-	{
-		if (PrimitiveType == D3DPT_TRIANGLELIST && VertexStreamZeroStride == 24)
-		{
-			int numVerts = PrimitiveCount * 3;
-			std::unique_ptr<struct hud_text_vert[]> modifiedVerts(new struct hud_text_vert[numVerts]);
-			memcpy(modifiedVerts.get(), pVertexStreamZeroData, sizeof(struct hud_text_vert) * numVerts);
-			for (int i = 0; i < numVerts; i++)
-			{
-				modifiedVerts[i].x = 1280 - modifiedVerts[i].x;
-			}
-			return m_pD3Ddev->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, modifiedVerts.get(), VertexStreamZeroStride);
-		}
-	}
 	return m_pD3Ddev->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 

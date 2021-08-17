@@ -2,6 +2,12 @@
 
 #include "d3d9.h"
 
+void __stdcall MyRenderFrame(int unk);
+typedef void(__stdcall* render_frame_t)(int);
+extern render_frame_t renderFunc;
+
+
+
 interface hkIDirect3DDevice9 : public IDirect3DDevice9
 {
 public:
