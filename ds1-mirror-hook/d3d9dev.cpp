@@ -33,15 +33,129 @@ IDirect3DVertexDeclaration9* vertexDeclaration = nullptr;
 IDirect3DVertexDeclaration9* prevVDecl = nullptr;
 IDirect3DStateBlock9* prevStateBlock = nullptr;
 
-render_frame_t renderFunc = (render_frame_t)0x00d81140;
+render_frame_t oFinalRenderPass = (render_frame_t)0x00d81140;
+set_target_pos_t oSetTargetRect = (set_target_pos_t)0x00c82770;
+set_target_pos_t oSetEnemyBarRect = (set_target_pos_t)0x00fadfd0;
+set_target_pos_t oSetPhantomBarRect = (set_target_pos_t)0x00fa86f0;
 
-void __stdcall MyRenderFrame(int unk)
+void __stdcall hkSetTargetRect()
+{
+	int edi_bak1, edi_bak2;
+	float *rect;
+	_asm
+	{
+		mov edi_bak1, edi
+	}
+
+	_asm
+	{
+		mov edi_bak2, edi
+		mov edi, edi_bak1
+	}
+	oSetTargetRect();
+	_asm
+	{
+		mov edi_bak1, edi
+		mov edi, edi_bak2
+		
+		// pointer to the rect gets left in ecx+0x78 so grab it here
+		mov rect, ecx
+		add rect, 0x78
+	}
+
+	rect[0] = 1280 - rect[0];
+	rect[2] = 1280 - rect[2];
+	std::swap(rect[0], rect[2]);
+
+	_asm
+	{
+		mov edi, edi_bak1
+	}
+}
+
+void __stdcall hkSetEnemyBarRect()
+{
+	int edi_bak1, edi_bak2;
+	float* rect;
+	_asm
+	{
+		mov edi_bak1, edi
+	}
+
+	_asm
+	{
+		mov edi_bak2, edi
+		mov edi, edi_bak1
+	}
+	oSetEnemyBarRect();
+	_asm
+	{
+		mov edi_bak1, edi
+		mov edi, edi_bak2
+
+		mov rect, ecx
+		add rect, 0x78
+	}
+
+	rect[0] = 1280 - rect[0];
+	rect[2] = 1280 - rect[2];
+	std::swap(rect[0], rect[2]);
+
+	_asm
+	{
+		mov edi, edi_bak1
+	}
+}
+
+void __stdcall hkSetPhantomBarRect()
+{
+	int ebx_bak, esi_bak, tmp;
+	float* rect;
+	_asm
+	{
+		mov ebx_bak, ebx
+		mov esi_bak, esi
+	}
+
+	_asm
+	{
+		xchg ebx, ebx_bak
+		xchg esi, esi_bak
+	}
+	oSetPhantomBarRect();
+	_asm
+	{
+		xchg ebx, ebx_bak
+		xchg esi, esi_bak
+
+		lea rect, ecx
+		add rect, 0x78
+	}
+
+	rect[0] = 1280 - rect[0];
+	rect[2] = 1280 - rect[2];
+	std::swap(rect[0], rect[2]);
+
+	_asm
+	{
+		mov ebx, ebx_bak
+		mov esi, esi_bak
+	}
+}
+
+
+void __stdcall hkFinalRenderPass(int unk)
 {
 	// one parameter is passed via edi, so make sure injected code doesn't overwrite it
 	int edi_bak1, edi_bak2;
 	_asm
 	{
 		mov edi_bak1, edi
+	}
+
+	if (capture)
+	{
+		MyDebugBreak();
 	}
 
 	HRESULT hr;
@@ -92,7 +206,7 @@ void __stdcall MyRenderFrame(int unk)
 		mov edi_bak2, edi
 		mov edi, edi_bak1
 	}
-	renderFunc(unk);
+	oFinalRenderPass(unk);
 	_asm
 	{
 		mov edi_bak1, edi
@@ -139,6 +253,7 @@ void __stdcall MyRenderFrame(int unk)
 	prevVDecl->Release();
 	renderTarget->Release();
 	renderTexture->Release();
+	renderFinished = true;
 
 	_asm
 	{
@@ -166,6 +281,8 @@ HRESULT APIENTRY hkIDirect3DDevice9::Present(CONST RECT* pSourceRect, CONST RECT
 	else {
 		capture = false;
 	}
+	renderFinished = false;
+	ndps = 0;
 
 	return m_pD3Ddev->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
@@ -205,7 +322,31 @@ struct hud_text_vert {
 };
 
 HRESULT APIENTRY hkIDirect3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinIndex, UINT NumVertices, UINT PrimitiveCount, CONST void* pIndexData, D3DFORMAT IndexDataFormat, CONST void* pVertexStreamZeroData, UINT VertexStreamZeroStride) {
-	return m_pD3Ddev->DrawIndexedPrimitiveUP(PrimitiveType, MinIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
+	
+	HRESULT ret = m_pD3Ddev->DrawIndexedPrimitiveUP(PrimitiveType, MinIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
+	
+	if (renderFinished && capture)
+	{
+		IDirect3DSurface9* oldRenderTarget;
+		HRESULT hr = m_pD3Ddev->GetRenderTarget(0, &oldRenderTarget);
+		if (hr == D3D_OK && oldRenderTarget)
+		{
+			std::wstringstream ss;
+			ss << L"capture\\" << std::setfill(L'0') << std::setw(5) << std::dec << ndps << L".png";
+			D3DSURFACE_DESC desc;
+			oldRenderTarget->GetDesc(&desc);
+			IDirect3DSurface9* convertedSurface;
+			m_pD3Ddev->CreateRenderTarget(desc.Width, desc.Height, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE, 0, true, &convertedSurface, NULL);
+			D3DXLoadSurfaceFromSurface(convertedSurface, NULL, NULL, oldRenderTarget, NULL, NULL, D3DX_FILTER_POINT, 0);
+			D3DXSaveSurfaceToFile(ss.str().c_str(), D3DXIFF_PNG, convertedSurface, NULL, NULL);
+			convertedSurface->Release();
+			Log << "rt: 0x" << std::hex << oldRenderTarget << "; ndps: " << std::dec << ndps << "; DrawIndexedPrimitiveUP: PrimitiveType: " << PrimitiveType << "; " << "PrimitiveCount: " << PrimitiveCount << "; VertexStreamZeroStride: " << VertexStreamZeroStride << LogEndl::INFO;
+			ndps++;
+			MyDebugBreak();
+		}
+	}
+
+	return ret;
 }
 
 HRESULT APIENTRY hkIDirect3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount) {
@@ -214,7 +355,28 @@ HRESULT APIENTRY hkIDirect3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveTyp
 
 HRESULT APIENTRY hkIDirect3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, CONST void* pVertexStreamZeroData, UINT VertexStreamZeroStride) {
 
-	return m_pD3Ddev->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
+	HRESULT ret = m_pD3Ddev->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
+	if (false && renderFinished && capture)
+	{
+		IDirect3DSurface9* oldRenderTarget;
+		HRESULT hr = m_pD3Ddev->GetRenderTarget(0, &oldRenderTarget);
+		if (hr == D3D_OK && oldRenderTarget)
+		{
+			std::wstringstream ss;
+			ss << L"capture\\" << std::setfill(L'0') << std::setw(5) << std::dec << ndps << L".png";
+			D3DSURFACE_DESC desc;
+			oldRenderTarget->GetDesc(&desc);
+			IDirect3DSurface9* convertedSurface;
+			m_pD3Ddev->CreateRenderTarget(desc.Width, desc.Height, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE, 0, true, &convertedSurface, NULL);
+			D3DXLoadSurfaceFromSurface(convertedSurface, NULL, NULL, oldRenderTarget, NULL, NULL, D3DX_FILTER_POINT, 0);
+			D3DXSaveSurfaceToFile(ss.str().c_str(), D3DXIFF_PNG, convertedSurface, NULL, NULL);
+			convertedSurface->Release();
+			Log << "rt: 0x" << std::hex << oldRenderTarget << "; ndps: " << std::dec << ndps << "; DrawPrimitiveUP: PrimitiveType: " << PrimitiveType << "; " << "PrimitiveCount: " << PrimitiveCount << "; VertexStreamZeroStride: " << VertexStreamZeroStride << LogEndl::INFO;
+			ndps++;
+			MyDebugBreak();
+		}
+	}
+	return ret;
 }
 
 HRESULT APIENTRY hkIDirect3DDevice9::DrawRectPatch(UINT Handle, CONST float* pNumSegs, CONST D3DRECTPATCH_INFO* pRectPatchInfo) {

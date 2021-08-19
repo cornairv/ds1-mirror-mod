@@ -2,10 +2,19 @@
 
 #include "d3d9.h"
 
-void __stdcall MyRenderFrame(int unk);
+void __stdcall hkFinalRenderPass(int unk);
 typedef void(__stdcall* render_frame_t)(int);
-extern render_frame_t renderFunc;
+extern render_frame_t oFinalRenderPass;
 
+void __stdcall hkSetTargetRect();
+typedef void(__stdcall* set_target_pos_t)();
+extern set_target_pos_t oSetTargetRect;
+
+void __stdcall hkSetEnemyBarRect();
+extern set_target_pos_t oSetEnemyBarRect;
+
+void __stdcall hkSetPhantomBarRect();
+extern set_target_pos_t oSetPhantomBarRect;
 
 
 interface hkIDirect3DDevice9 : public IDirect3DDevice9
