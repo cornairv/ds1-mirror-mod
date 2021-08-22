@@ -1,10 +1,14 @@
 #include "pch.h"
 #include "logger.h"
 
-void Logger::Init(std::string filename, bool show_console)
+bool Logger::enabled = true;
+
+Logger::Logger()
 {
+	std::string filename = "mirror-mod.log";
+	console = true;
+
 	log_out.open(filename, std::ios_base::app);
-	console = show_console;
 	if (console)
 	{
 		AllocConsole();
@@ -61,5 +65,5 @@ void Logger::flush()
 
 void MyDebugBreak()
 {
-	Log << "debug" << LogEndl::ENDL;
+	LOG << "debug" << LogEndl::ENDL;
 }

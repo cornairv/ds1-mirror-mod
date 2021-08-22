@@ -42,6 +42,9 @@
     <ClInclude Include="d3d9dev.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="render_manager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -66,6 +69,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="d3d9dev.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="render_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

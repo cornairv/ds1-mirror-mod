@@ -9,15 +9,15 @@
 
 tDirect3DCreate9 oDirect3DCreate9 = Direct3DCreate9;
 tDirectInput8Create oDirectInput8Create;
-Logger Log;
+
+HRESULT myfail() { return 1; }
 
 bool APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     if (ul_reason_for_call == DLL_PROCESS_ATTACH)
     {
         DisableThreadLibraryCalls(hModule);
-        Log.Init("mirror-mod.log", true);
-        Log << "Hooked dinput8.dll" << LogEndl::INFO;
+        LOG << "Hooked dinput8.dll" << LogEndl::INFO;
 
         DisableThreadLibraryCalls(hModule);
         wchar_t DInputDllName[MAX_PATH];
@@ -26,11 +26,11 @@ bool APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         HMODULE DInput8DLL = LoadLibrary(DInputDllName);
         if (!DInput8DLL)
         {
-            Log << "Failed to load " << DInputDllName << LogEndl::INFO;
+            LOG << "Failed to load " << DInputDllName << LogEndl::INFO;
             return false;
         }
         oDirectInput8Create = (tDirectInput8Create)GetProcAddress(DInput8DLL, "DirectInput8Create");
-
+        CHECK(myfail());
         hookD3d9();
 
         return true;

@@ -13,13 +13,22 @@ enum class LogEndl { INFO, ERRO, WARN, ENDL };
 class Logger
 {
 public:
+	static Logger& getInstance()
+	{
+		static Logger singleton;
+		return singleton;
+	}
+	Logger(Logger const&) = delete;
+	void operator=(Logger const&) = delete;
 
-	void Init(std::string filename, bool console);
+	Logger();
 	~Logger();
 
 	template <typename T>
 	friend Logger& operator<< (Logger& logger, const T& x);
 	friend Logger& operator<< (Logger& logger, LogEndl s);
+
+	static bool enabled;
 
 private:
 	std::ofstream log_out;
@@ -39,4 +48,11 @@ Logger& operator<< (Logger& logger, const T& x)
 
 void MyDebugBreak();
 
-extern Logger Log;
+#define LOG if (!Logger::enabled) {} else Logger::getInstance()
+
+#define CHECK(expr) \
+	do { \
+		long hr = (long)(expr); \
+		if (hr != 0) \
+			LOG << "(" << __FILE__ << ":" << ##__LINE__ << ") Expression returned " << hr << ": " << #expr << LogEndl::ERRO; \
+	} while (0)

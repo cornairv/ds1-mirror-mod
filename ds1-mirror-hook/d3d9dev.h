@@ -2,35 +2,14 @@
 
 #include "d3d9.h"
 
-void __stdcall hkFinalRenderPass(int unk);
-typedef void(__stdcall* render_frame_t)(int);
-extern render_frame_t oFinalRenderPass;
-
-void __stdcall hkSetTargetRect();
-typedef void(__stdcall* set_target_pos_t)();
-extern set_target_pos_t oSetTargetRect;
-
-void __stdcall hkSetEnemyBarRect();
-extern set_target_pos_t oSetEnemyBarRect;
-
-void __stdcall hkSetPhantomBarRect();
-extern set_target_pos_t oSetPhantomBarRect;
-
-
 interface hkIDirect3DDevice9 : public IDirect3DDevice9
 {
 public:
-    hkIDirect3DDevice9(IDirect3DDevice9* pReturnedDeviceInterface, D3DPRESENT_PARAMETERS* pPresentParam, IDirect3D9* pIDirect3D9);
-
     // callback interface
-    IDirect3DDevice9* m_pD3Ddev;
-    IDirect3D9* m_pD3Dint;
-
-    // need to fake this
-    D3DDISPLAYMODE displayMode;
-
-    // PresentationParameters
-    D3DPRESENT_PARAMETERS m_PresentParam;
+    hkIDirect3DDevice9(IDirect3DDevice9* pReturnedDeviceInterface, D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3D9* pIDirect3D9);
+    IDirect3D9* hkD3d9;
+    D3DPRESENT_PARAMETERS presentParams;
+    IDirect3DDevice9* d3d9Dev;
 
     // original interface
     STDMETHOD(QueryInterface)(REFIID riid, void** ppvObj);
