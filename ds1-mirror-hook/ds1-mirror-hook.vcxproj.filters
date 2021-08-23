@@ -45,6 +45,12 @@
     <ClInclude Include="render_manager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="dinput8int.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dinput8dev.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -72,6 +78,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="render_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dinput8int.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="dinput8dev.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

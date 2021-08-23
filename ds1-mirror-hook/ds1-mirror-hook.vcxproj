@@ -109,7 +109,7 @@
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>dinput8.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>d3d9.lib;d3dx9.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;d3dx9.lib;dxguid.lib;dinput8.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile />
     <FxCompile />
@@ -137,7 +137,7 @@
       <EnableUAC>false</EnableUAC>
       <ModuleDefinitionFile>dinput8.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>d3d9.lib;d3dx9.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;d3dx9.lib;dxguid.lib;dinput8.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile />
     <FxCompile />
@@ -182,6 +182,8 @@
     <ClInclude Include="d3d9.h" />
     <ClInclude Include="d3d9dev.h" />
     <ClInclude Include="d3d9int.h" />
+    <ClInclude Include="dinput8dev.h" />
+    <ClInclude Include="dinput8int.h" />
     <ClInclude Include="hooks.h" />
     <ClInclude Include="dinput8.h" />
     <ClInclude Include="dllmain.h" />
@@ -194,6 +196,8 @@
     <ClCompile Include="d3d9.cpp" />
     <ClCompile Include="d3d9dev.cpp" />
     <ClCompile Include="d3d9int.cpp" />
+    <ClCompile Include="dinput8dev.cpp" />
+    <ClCompile Include="dinput8int.cpp" />
     <ClCompile Include="hooks.cpp" />
     <ClCompile Include="dinput8.cpp" />
     <ClCompile Include="dllmain.cpp" />

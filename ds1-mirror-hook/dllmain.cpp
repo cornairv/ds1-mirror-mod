@@ -10,8 +10,6 @@
 tDirect3DCreate9 oDirect3DCreate9 = Direct3DCreate9;
 tDirectInput8Create oDirectInput8Create;
 
-HRESULT myfail() { return 1; }
-
 bool APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     if (ul_reason_for_call == DLL_PROCESS_ATTACH)
@@ -30,7 +28,7 @@ bool APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             return false;
         }
         oDirectInput8Create = (tDirectInput8Create)GetProcAddress(DInput8DLL, "DirectInput8Create");
-        CHECK(myfail());
+
         hookD3d9();
 
         return true;
