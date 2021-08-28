@@ -4,10 +4,14 @@
 #include "dllmain.h"
 #include "logger.h"
 #include "hooks.h"
+#include "d3d9.h"
+#include "xinput.h"
 #include <detours/detours.h>
 #include <memory>
 
 tDirect3DCreate9 oDirect3DCreate9 = Direct3DCreate9;
+tXInputGetState oXInputGetState = XInputGetState;
+tXInputSetState oXInputSetState = XInputSetState;
 tDirectInput8Create oDirectInput8Create;
 
 bool APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -29,7 +33,7 @@ bool APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         }
         oDirectInput8Create = (tDirectInput8Create)GetProcAddress(DInput8DLL, "DirectInput8Create");
 
-        hookD3d9();
+        setupHooks();
 
         return true;
 

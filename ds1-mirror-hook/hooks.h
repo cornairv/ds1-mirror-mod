@@ -1,4 +1,3 @@
 #pragma once
 
-void hookD3d9();
-
+void setupHooks();

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "dinput8dev.h"
 #include "logger.h"
+#include "input_manager.h"
 
 STDMETHODIMP_(HRESULT __stdcall) hkIDirectInputDevice8::QueryInterface(REFIID riid, LPVOID* ppvObj)
 {
@@ -49,86 +50,23 @@ STDMETHODIMP_(HRESULT __stdcall) hkIDirectInputDevice8::Unacquire()
 
 STDMETHODIMP_(HRESULT __stdcall) hkIDirectInputDevice8::GetDeviceState(DWORD cbData, LPVOID lpvData)
 {
-    //LOG << "IDirectInputDevice8::GetDeviceState " << std::dec << cbData << LogEndl::INFO;
-    /*
-    if (cbData == 20)
-    {
-        LOG << "IDirectInputDevice8::GetDeviceState\n";
-        DIMOUSESTATE2* state = (DIMOUSESTATE2*)lpvData;
-        LOG << "lX: " << std::dec << state->lX << "\n";
-        LOG << "lY: " << state->lY << "\n";
-        LOG << "lZ: " << state->lZ << "\n";
-        for (int i = 0; i < 8; i++)
-        {
-            LOG << "b" << std::dec << i << ": " << std::hex << state->rgbButtons[i] << "\n";
-        }
-        LOG << LogEndl::INFO;
-    }
-    else if (cbData == 256)
-    {
-        LOG << "IDirectInputDevice8::GetDeviceState\n";
-        DIJOYSTATE* state = (DIJOYSTATE*)lpvData;
-        LOG << "lX: " << std::dec << state->lX << "\n";
-        LOG << "lY: " << state->lY << "\n";
-        LOG << "lZ: " << state->lZ << "\n";
-        LOG << "lRX: " << state->lRx << "\n";
-        LOG << "lRY: " << state->lRy << "\n";
-        LOG << "lRZ: " << state->lRz << "\n";
-        for (int i = 0; i < 2; i++)
-        {
-            LOG << "rglSlider[" << i << "]: " << state->rglSlider[i] << "\n";
-        }
-        for (int i = 0; i < 4; i++)
-        {
-            LOG << "rgdwPOV[" << i << "]: " << state->rgdwPOV[i] << "\n";
-        }
-        for (int i = 0; i < 32; i++)
-        {
-            LOG << "rgbButtons[" << i << "]: " << std::hex << state->rgbButtons[i] << "\n";
-        }
-        LOG << LogEndl::INFO;
-    }
-    else
-    {
-        LOG << "IDirectInputDevice8::GetDeviceState" << LogEndl::INFO;
-    }
-    */
-    return dinput8Dev->GetDeviceState(cbData, lpvData);
+    HRESULT hr = dinput8Dev->GetDeviceState(cbData, lpvData);
+    InputManager::getInstance().modifyDirectInput(cbData, lpvData);
+    return hr;
 }
 
 STDMETHODIMP_(HRESULT __stdcall) hkIDirectInputDevice8::GetDeviceData(DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags)
 {
-    LOG << "IDirectInputDevice8::GetDeviceData" << LogEndl::INFO;
     return dinput8Dev->GetDeviceData(cbObjectData, rgdod, pdwInOut, dwFlags);
 }
 
 STDMETHODIMP_(HRESULT __stdcall) hkIDirectInputDevice8::SetDataFormat(LPCDIDATAFORMAT lpdf)
 {
-    /*
-    LOG << "IDirectInputDevice8::SetDataFormat\n";
-    for (DWORD i = 0; i < lpdf->dwNumObjs; i++)
-    {
-        LOG << std::dec << lpdf->rgodf[i].dwOfs << ": ";
-        if (lpdf->rgodf[i].dwType & DIDFT_ABSAXIS) LOG << "DIDFT_ABSAXIS | ";
-        if (lpdf->rgodf[i].dwType & DIDFT_AXIS) LOG << "DIDFT_AXIS | ";
-        if (lpdf->rgodf[i].dwType & DIDFT_BUTTON) LOG << "DIDFT_BUTTON | ";
-        if (lpdf->rgodf[i].dwType & DIDFT_FFACTUATOR) LOG << "DIDFT_FFACTUATOR | ";
-        if (lpdf->rgodf[i].dwType & DIDFT_FFEFFECTTRIGGER) LOG << "DIDFT_FFEFFECTTRIGGER | ";
-        if (lpdf->rgodf[i].dwType & DIDFT_POV) LOG << "DIDFT_POV | ";
-        if (lpdf->rgodf[i].dwType & DIDFT_PSHBUTTON) LOG << "DIDFT_PSHBUTTON | ";
-        if (lpdf->rgodf[i].dwType & DIDFT_RELAXIS) LOG << "DIDFT_RELAXIS | ";
-        if (lpdf->rgodf[i].dwType & DIDFT_TGLBUTTON) LOG << "DIDFT_TGLBUTTON | ";
-        if (lpdf->rgodf[i].dwType & DIDFT_VENDORDEFINED) LOG << "DIDFT_VENDORDEFINED | ";
-        LOG << "\n";
-    }
-    LOG << LogEndl::INFO;
-    */
     return dinput8Dev->SetDataFormat(lpdf);
 }
 
 STDMETHODIMP_(HRESULT __stdcall) hkIDirectInputDevice8::SetEventNotification(HANDLE hEvent)
 {
-    LOG << "IDirectInputDevice8::SetEventNotification " << std::hex << hEvent << LogEndl::INFO;
     return dinput8Dev->SetEventNotification(hEvent);
 }
 
@@ -214,13 +152,11 @@ STDMETHODIMP_(HRESULT __stdcall) hkIDirectInputDevice8::WriteEffectToFile(LPCWST
 
 STDMETHODIMP_(HRESULT __stdcall) hkIDirectInputDevice8::BuildActionMap(LPDIACTIONFORMATW lpdiaf, LPCWSTR lpszUserName, DWORD dwFlags)
 {
-    LOG << "IDirectInputDevice8::BuildActionMap" << LogEndl::INFO;
     return dinput8Dev->BuildActionMap(lpdiaf, lpszUserName, dwFlags);
 }
 
 STDMETHODIMP_(HRESULT __stdcall) hkIDirectInputDevice8::SetActionMap(LPDIACTIONFORMATW lpdiActionFormat, LPCWSTR lptszUserName, DWORD dwFlags)
 {
-    LOG << "IDirectInputDevice8::SetActionMap" << LogEndl::INFO;
     return dinput8Dev->SetActionMap(lpdiActionFormat, lptszUserName, dwFlags);
 }
 

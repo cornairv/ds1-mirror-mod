@@ -44,7 +44,6 @@ HRESULT APIENTRY hkIDirect3D9::CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType,
 	HRESULT hr = d3d9->CreateDevice(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 	if (hr == D3D_OK)
 	{
-		LOG << "Override IDirect3D9::CreateDevice" << LogEndl::INFO;
 		hkIDirect3DDevice9* hkD3d9Dev = new hkIDirect3DDevice9(*ppReturnedDeviceInterface, pPresentationParameters, this);
 		RenderManager::getInstance().setD3dDevice(hkD3d9Dev);
 		*ppReturnedDeviceInterface = hkD3d9Dev;

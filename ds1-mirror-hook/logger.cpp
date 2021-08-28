@@ -63,7 +63,7 @@ void Logger::flush()
 	sstream.str(std::string());
 }
 
-void MyDebugBreak()
+void __declspec(noinline) MyDebugBreak()
 {
 	LOG << "debug" << LogEndl::ENDL;
 }

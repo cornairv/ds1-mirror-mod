@@ -23,7 +23,6 @@ STDMETHODIMP_(HRESULT __stdcall) hkIDirectInput8::CreateDevice(REFGUID rguid, LP
 	HRESULT hr = dinput8->CreateDevice(rguid, lplpDirectInputDevice, pUnkOuter);
 	if (hr == 0)
 	{
-		LOG << "Override IDirectInput8::CreateDevice " << std::hex << lplpDirectInputDevice << LogEndl::INFO;
 		hkIDirectInputDevice8* hkDinput8Dev = new hkIDirectInputDevice8(*lplpDirectInputDevice);
 		*lplpDirectInputDevice = hkDinput8Dev;
 	}

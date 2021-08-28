@@ -1,17 +1,30 @@
 #include "pch.h"
 #include "hooks.h"
 #include "d3d9.h"
+#include "xinput.h"
 #include "render_manager.h"
+#include "input_manager.h"
 #include <detours/detours.h>
+#include "logger.h"
 
-void hookD3d9()
+#define ATTACH_HOOK(name) DetourAttach(&(PVOID&)o##name, hk##name)
+
+void setupHooks()
 {
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)oDirect3DCreate9, hkDirect3DCreate9);
-	DetourAttach(&(PVOID&)oFinalRenderPass, hkFinalRenderPass);
-	DetourAttach(&(PVOID&)oSetLockonRect, hkSetLockonRect);
-	DetourAttach(&(PVOID&)oSetEnemyRect, hkSetEnemyRect);
-	DetourAttach(&(PVOID&)oSetPhantomRect, hkSetPhantomRect);
+
+	// rendering
+	ATTACH_HOOK(Direct3DCreate9);
+	ATTACH_HOOK(XInputGetState);
+	ATTACH_HOOK(XInputSetState);
+	ATTACH_HOOK(FinalRenderPass);
+	ATTACH_HOOK(SetLockonRect);
+	ATTACH_HOOK(SetEnemyRect);
+	ATTACH_HOOK(SetPhantomRect);
+
+	//input
+	ATTACH_HOOK(PropagateKeybinds);
+
 	DetourTransactionCommit();
 }
