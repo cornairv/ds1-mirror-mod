@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "xinput.h"
 #include "input_manager.h"
-#include "logger.h"
 
 DWORD WINAPI hkXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 {

@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "dinput8dev.h"
-#include "logger.h"
 #include "input_manager.h"
 
 STDMETHODIMP_(HRESULT __stdcall) hkIDirectInputDevice8::QueryInterface(REFIID riid, LPVOID* ppvObj)

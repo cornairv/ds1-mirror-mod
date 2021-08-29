@@ -1,12 +1,7 @@
 #pragma once
 
-#include <string>
 #include <fstream>
-#include <ostream>
 #include <sstream>
-#include <ctime>
-#include <iomanip>
-#include <memory>
 
 enum class LogEndl { INFO, ERRO, WARN, ENDL };
 
@@ -31,9 +26,9 @@ public:
 	static bool enabled;
 
 private:
-	std::ofstream log_out;
+	std::ofstream logOut;
 	std::stringstream sstream;
-	std::stringstream prefix_sstream;
+	std::stringstream prefixSstream;
 	bool console;
 
 	void flush();

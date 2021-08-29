@@ -1,9 +1,10 @@
 #include "pch.h"
 #include "input_manager.h"
+#include "addresses.h"
+#include "util.h"
 #include "logger.h"
-#include <limits>
-#include <dinput.h>
 #include <map>
+#include <dinput.h>
 
 void InputManager::modifyDirectInput(DWORD cbData, LPVOID lpvData)
 {
@@ -56,32 +57,6 @@ void InputManager::pressBoundKey(byte* keyboardState, int bindIndex)
 	}
 }
 
-void swapButtons(WORD& n, WORD b1, WORD b2)
-{
-	bool p1 = n & b1;
-	bool p2 = n & b2;
-	if (p1 != p2)
-	{
-		n ^= b1;
-		n ^= b2;
-	}
-}
-
-template<typename T>
-void safeNegate(T& n)
-{
-	// avoid integer overflow when negating min value
-	if (n == std::numeric_limits<T>::min())
-	{
-		n++;
-	}
-	n *= -1;
-	if (n == std::numeric_limits<T>::min() + 1)
-	{
-		n--;
-	}
-}
-
 void InputManager::modifyGetXInput(XINPUT_STATE* pState)
 {
 	bool menu = isMenuOpen();
@@ -92,11 +67,11 @@ void InputManager::modifyGetXInput(XINPUT_STATE* pState)
 	}
 	if (invertWeaponSwitch && !menu)
 	{
-		swapButtons(pState->Gamepad.wButtons, XINPUT_GAMEPAD_DPAD_LEFT, XINPUT_GAMEPAD_DPAD_RIGHT);
+		swapBits(pState->Gamepad.wButtons, XINPUT_GAMEPAD_DPAD_LEFT, XINPUT_GAMEPAD_DPAD_RIGHT);
 	}
 	if (invertAttacks && !menu)
 	{
-		swapButtons(pState->Gamepad.wButtons, XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER);
+		swapBits(pState->Gamepad.wButtons, XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER);
 		std::swap(pState->Gamepad.bLeftTrigger, pState->Gamepad.bRightTrigger);
 	}
 }
@@ -149,15 +124,11 @@ void InputManager::modifyWeaponIcons(void* obj)
 	}
 }
 
-tSetup_FrpgMenuDlgFeShortcut oSetup_FrpgMenuDlgFeShortcut = (tSetup_FrpgMenuDlgFeShortcut)0x00c82f00;
-
-void __fastcall hkSetup_FrpgMenuDlgFeShortcut(void* __this, int edx, void* unk1, void* unk2, void* unk3)
+void __fastcall hkSetup_FrpgMenuDlgFeShortcut(void* __this, [[maybe_unused]] int __edx, void* unk1, void* unk2, void* unk3)
 {
 	oSetup_FrpgMenuDlgFeShortcut(__this, unk1, unk2, unk3);
 	InputManager::getInstance().modifyWeaponIcons(__this);
 }
-
-propagate_keybinds_t oPropagateKeybinds = (propagate_keybinds_t)0x00f73ff0;
 
 int __fastcall hkPropagateKeybinds(void* inputStructure)
 {
@@ -174,9 +145,6 @@ int __fastcall hkPropagateKeybinds(void* inputStructure)
 	return ret;
 }
 
-typedef int(__stdcall* get_menu_state_t)();
-get_menu_state_t getMenuState = (get_menu_state_t)0x00c2abe0;
-
 bool isMenuOpen()
 {
 	// if in-game time is 0, we're at the main menu
@@ -186,11 +154,11 @@ bool isMenuOpen()
 	}
 
 	// menuManager holds info about all the menus on screen
-	byte* menuManager = *(byte**)0x013786d0;
+	byte* menuManager = *pMenuManager;
 
 	// getMenuState builds a bitfield representing currently open menus.
 	// Mask out the menus that don't block input
-	int menuState = getMenuState() & 0x7ffff77f;
+	int menuState = oGetMenuState() & 0x7ffff77f;
 	if (menuState == 0)
 	{
 		return false;
@@ -211,13 +179,13 @@ bool isMenuOpen()
 // get amount of time in-game in ms, or 0 if at main menu/loading screen
 unsigned int getIngameTime()
 {
-	byte* gameDataManager = *(byte**)0x01378700;
+	byte* gameDataManager = *pGameDataManager;
 	return *(unsigned int*)(gameDataManager + 0x68);
 }
 
 void getKeyBinding(int index, byte& key, byte& modifier)
 {
-	byte* gameDataManager = *(byte**)0x01378700;
+	byte* gameDataManager = *pGameDataManager;
 	short* bindings = (short*)(*(byte**)(gameDataManager + 0x34) + 0x1a);
 	key = static_cast<byte>(bindings[index * 2]);
 	modifier = static_cast<byte>(bindings[index * 2 + 1]);

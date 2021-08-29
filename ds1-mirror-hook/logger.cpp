@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "logger.h"
+#include <iomanip>
 
 bool Logger::enabled = true;
 
@@ -8,7 +9,7 @@ Logger::Logger()
 	std::string filename = "mirror-mod.log";
 	console = true;
 
-	log_out.open(filename, std::ios_base::app);
+	logOut.open(filename, std::ios_base::app);
 	if (console)
 	{
 		AllocConsole();
@@ -17,9 +18,9 @@ Logger::Logger()
 
 Logger::~Logger()
 {
-	if (log_out.is_open())
+	if (logOut.is_open())
 	{
-		log_out.close();
+		logOut.close();
 		FreeConsole();
 	}
 }
@@ -29,18 +30,18 @@ Logger& operator<< (Logger& logger, LogEndl s)
 	time_t now = std::time(nullptr);
 	struct tm timebuf;
 	localtime_s(&timebuf, &now);
-	logger.prefix_sstream << std::put_time(&timebuf, "%F %T ");
+	logger.prefixSstream << std::put_time(&timebuf, "%F %T ");
 
 	switch (s)
 	{
 	case LogEndl::INFO:
-		logger.prefix_sstream << "[INFO] ";
+		logger.prefixSstream << "[INFO] ";
 		break;
 	case LogEndl::ERRO:
-		logger.prefix_sstream << "[ERRO] ";
+		logger.prefixSstream << "[ERRO] ";
 		break;
 	case LogEndl::WARN:
-		logger.prefix_sstream << "[WARN] ";
+		logger.prefixSstream << "[WARN] ";
 		break;
 	case LogEndl::ENDL:
 		break;
@@ -51,14 +52,15 @@ Logger& operator<< (Logger& logger, LogEndl s)
 
 void Logger::flush()
 {
-	prefix_sstream << sstream.str() << "\n";
-	log_out << prefix_sstream.str();
+	prefixSstream << sstream.str() << "\n";
+	logOut << prefixSstream.str();
+	logOut.flush();
 	if (console)
 	{
-		WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), prefix_sstream.str().c_str(), prefix_sstream.str().length(), nullptr, nullptr);
+		WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), prefixSstream.str().c_str(), prefixSstream.str().length(), nullptr, nullptr);
 	}
-	prefix_sstream.clear();
-	prefix_sstream.str(std::string());
+	prefixSstream.clear();
+	prefixSstream.str(std::string());
 	sstream.clear();
 	sstream.str(std::string());
 }

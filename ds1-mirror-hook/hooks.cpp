@@ -4,6 +4,7 @@
 #include "xinput.h"
 #include "render_manager.h"
 #include "input_manager.h"
+#include "addresses.h"
 #include <detours/detours.h>
 #include "logger.h"
 
@@ -18,7 +19,7 @@ void setupHooks()
 	ATTACH_HOOK(Direct3DCreate9);
 	ATTACH_HOOK(XInputGetState);
 	ATTACH_HOOK(XInputSetState);
-	ATTACH_HOOK(FinalRenderPass);
+	ATTACH_HOOK(RenderPostProcess);
 	ATTACH_HOOK(SetLockonRect);
 	ATTACH_HOOK(SetEnemyRect);
 	ATTACH_HOOK(SetPhantomRect);

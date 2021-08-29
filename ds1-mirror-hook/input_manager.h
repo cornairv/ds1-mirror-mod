@@ -39,13 +39,8 @@ private:
 	bool leftClicking = false;
 };
 
-typedef int(__fastcall* propagate_keybinds_t)(void*);
-extern propagate_keybinds_t oPropagateKeybinds;
 int __fastcall hkPropagateKeybinds(void* inputStructure);
-
-typedef void(__thiscall* tSetup_FrpgMenuDlgFeShortcut)(void*, void*, void*, void*);
-extern tSetup_FrpgMenuDlgFeShortcut oSetup_FrpgMenuDlgFeShortcut;
-void __fastcall hkSetup_FrpgMenuDlgFeShortcut(void* __this, int edx, void* unk1, void* unk2, void* unk3);
+void __fastcall hkSetup_FrpgMenuDlgFeShortcut(void* __this, int __edx, void* unk1, void* unk2, void* unk3);
 
 bool isMenuOpen();
 unsigned int getIngameTime();

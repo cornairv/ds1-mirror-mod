@@ -1,6 +1,6 @@
 #pragma once
 
-#include "d3d9.h"
+#include <d3d9.h>
 
 interface hkIDirect3D9 : public IDirect3D9
 {

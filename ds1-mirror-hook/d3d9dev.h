@@ -1,6 +1,7 @@
 #pragma once
 
 #include "d3d9.h"
+#include <d3d9.h>
 
 interface hkIDirect3DDevice9 : public IDirect3DDevice9
 {
