@@ -130,7 +130,7 @@ void inline hkSetRectImpl(set_floating_rect_t originalFunc)
 	}
 
 	// mirror rect's position
-	int width = RenderManager::getInstance().getD3dDevice()->presentParams.BackBufferWidth;
+	int width = 1280; // always 1280, even at other resolutions
 	rect[0] = width - rect[0];
 	rect[2] = width - rect[2];
 	std::swap(rect[0], rect[2]);
