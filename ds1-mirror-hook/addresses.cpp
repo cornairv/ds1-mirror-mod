@@ -13,5 +13,6 @@ ADDRESS(tRenderPostProcess, oRenderPostProcess, 0x00fd3600);
 ADDRESS(tSetup_FrpgMenuDlgFeShortcut, oSetup_FrpgMenuDlgFeShortcut, 0x00c82f00);
 ADDRESS(tGetMenuState, oGetMenuState, 0x00c2abe0);
 ADDRESS(tPropagateKeybinds, oPropagateKeybinds, 0x00f73ff0);
+ADDRESS(tVoidFunc, oOncePerFrame, 0x00BAC020);
 ADDRESS(byte**, pMenuManager, 0x013786d0);
 ADDRESS(byte**, pGameDataManager, 0x01378700);

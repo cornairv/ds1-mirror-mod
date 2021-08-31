@@ -3,6 +3,7 @@
 #include "d3d9.h"
 #include "xinput.h"
 #include "dinput8.h"
+#include "config.h"
 #include "logger.h"
 
 tDirect3DCreate9 oDirect3DCreate9 = Direct3DCreate9;
@@ -14,6 +15,8 @@ bool APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, [[maybe_unused]
 {
     if (ul_reason_for_call == DLL_PROCESS_ATTACH)
     {
+        configure("dsmirror\\dsmirror.ini");
+
         DisableThreadLibraryCalls(hModule);
         LOG << "Hooked dinput8.dll" << LogEndl::INFO;
 

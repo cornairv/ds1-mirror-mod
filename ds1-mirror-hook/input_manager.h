@@ -1,7 +1,23 @@
 #pragma once
 
 #include <XInput.h>
+#include <dinput.h>
 #include <map>
+#include "config.h"
+
+class KeyWrapper
+{
+public:
+	KeyWrapper(int keyCode);
+	void update();
+	bool down = false;
+	bool pressed = false;
+	bool released = false;
+
+private:
+	int keyCode;
+	bool prevDown = false;
+};
 
 class InputManager
 {
@@ -15,28 +31,27 @@ public:
 	InputManager(InputManager const&) = delete;
 	void operator=(InputManager const&) = delete;
 
-	InputManager() { }
+	InputManager() : toggleKey(config.toggleKey) { }
 
 	void modifyDirectInput(DWORD cbData, LPVOID lpvData);
 	void modifyGetXInput(XINPUT_STATE* pState);
 	void modifySetXInput(XINPUT_VIBRATION* pVibration);
-	void modifyKeybinds(int* keybinds);
 	void modifyWeaponIcons(void* obj);
-	void pressBoundKey(byte* keyboardState, int bindIndex);
 
-	float* leftWeaponCoords = nullptr;
-	float* rightWeaponCoords = nullptr;
-
-	static std::map<byte, byte> keyMap;
-	static std::map<byte, byte> modifierKeyMap;
+	bool toggleState = true;
 
 private:
-	bool invertDirections = true;
-	bool invertAttacks = true;
-	bool invertWeaponSwitch = true;
+	void modifyMouseInput(DIMOUSESTATE2* state);
+	void modifyKeyboardInput(byte* state);
+	bool getKeyBinding(int index, byte& key, byte& modifier);
 
 	bool rightClicking = false;
 	bool leftClicking = false;
+	static std::map<byte, byte> keyMap;
+	static std::map<byte, byte> modifierKeyMap;
+	float* leftWeaponCoords = nullptr;
+	float* rightWeaponCoords = nullptr;
+	KeyWrapper toggleKey;
 };
 
 int __fastcall hkPropagateKeybinds(void* inputStructure);
@@ -44,4 +59,3 @@ void __fastcall hkSetup_FrpgMenuDlgFeShortcut(void* __this, int __edx, void* unk
 
 bool isMenuOpen();
 unsigned int getIngameTime();
-void getKeyBinding(int index, byte& key, byte& modifier);

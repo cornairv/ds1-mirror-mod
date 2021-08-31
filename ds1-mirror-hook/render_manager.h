@@ -19,9 +19,12 @@ public:
 	RenderManager() { }
 
 	void setD3dDevice(hkIDirect3DDevice9* hkD3dDev);
-	hkIDirect3DDevice9* getD3dDevice();
 	void reset();
 
+	void mirrorRectPosition(void* __this);
+	void mirrorScreen(void* __this, void* unk1, void* unk2);
+
+private:
 	// lazy initialize resources
 	typedef struct
 	{
@@ -34,7 +37,6 @@ public:
 	LPD3DXEFFECT getFlipEffect();
 	IDirect3DStateBlock9* getFlipStateBlock();
 
-private:
 	IDirect3DSurface9* flipSurface = nullptr;
 	IDirect3DTexture9* flipTexture = nullptr;
 	LPD3DXEFFECT flipEffect = nullptr;

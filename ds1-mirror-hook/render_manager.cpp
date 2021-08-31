@@ -1,7 +1,60 @@
 #include "pch.h"
 #include "render_manager.h"
+#include "input_manager.h"
 #include "addresses.h"
 #include "logger.h"
+
+void RenderManager::mirrorScreen(void* __this, void* unk1, void* unk2)
+{
+	// final post processing step before UI is rendered
+
+	IDirect3DSurface9* renderTarget = nullptr;
+	hkD3dDev->GetRenderTarget(0, &renderTarget);
+
+	// render to our own target
+	hkD3dDev->SetRenderTarget(0, getFlipSurface());
+
+	oRenderPostProcess(__this, unk1, unk2);
+
+	// save state info
+	getFlipStateBlock()->Capture();
+	IDirect3DVertexDeclaration9* prevVertDecl;
+	hkD3dDev->GetVertexDeclaration(&prevVertDecl);
+
+	hkD3dDev->SetVertexDeclaration(getScreenQuadVertexDeclaration());
+	hkD3dDev->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+	hkD3dDev->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE);
+
+	hkD3dDev->SetRenderTarget(0, renderTarget);
+
+	D3DXHANDLE frameTexHandle = getFlipEffect()->GetParameterByName(NULL, "frameTex2D");
+	getFlipEffect()->SetTexture(frameTexHandle, getFlipTexture());
+
+	// draw flipped image to original render target
+	UINT passes;
+	getFlipEffect()->Begin(&passes, 0);
+	getFlipEffect()->BeginPass(0);
+	hkD3dDev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, getScreenQuad(), sizeof(getScreenQuad()[0]));
+	getFlipEffect()->EndPass();
+	getFlipEffect()->End();
+
+	// restore state info
+	hkD3dDev->SetVertexDeclaration(prevVertDecl);
+	getFlipStateBlock()->Apply();
+
+	// clean up
+	renderTarget->Release();
+}
+
+void RenderManager::mirrorRectPosition(void* __this)
+{
+	// fix the position of floating UI elements like enemy health bars and the lock-on target
+	float* rect = (float*)((byte*)__this + 0x78);
+	int width = 1280; // always 1280, even at other resolutions
+	rect[0] = width - rect[0];
+	rect[2] = width - rect[2];
+	std::swap(rect[0], rect[2]);
+}
 
 void RenderManager::setD3dDevice(hkIDirect3DDevice9* hkD3dDev_)
 {
@@ -10,11 +63,6 @@ void RenderManager::setD3dDevice(hkIDirect3DDevice9* hkD3dDev_)
 		reset();
 	}
 	hkD3dDev = hkD3dDev_;
-}
-
-hkIDirect3DDevice9* RenderManager::getD3dDevice()
-{
-	return hkD3dDev;
 }
 
 void RenderManager::reset()
@@ -60,7 +108,7 @@ LPD3DXEFFECT RenderManager::getFlipEffect()
 	if (!flipEffect)
 	{
 		LPD3DXBUFFER flipErrors = nullptr;
-		D3DXCreateEffectFromFile(hkD3dDev, L"flip.fx", nullptr, NULL, D3DXFX_NOT_CLONEABLE | D3DXSHADER_OPTIMIZATION_LEVEL3, NULL, &flipEffect, &flipErrors);
+		D3DXCreateEffectFromFile(hkD3dDev, L"dsmirror\\mirror.fx", nullptr, NULL, D3DXFX_NOT_CLONEABLE | D3DXSHADER_OPTIMIZATION_LEVEL3, NULL, &flipEffect, &flipErrors);
 	}
 	return flipEffect;
 }
@@ -108,12 +156,10 @@ void inline hkSetRectImpl(void* __this, float unk, tSetFloatingRect originalFunc
 {
 	originalFunc(__this, unk);
 
-	// mirror rect's position
-	float* rect = (float*)((byte*)__this + 0x78);
-	int width = 1280; // always 1280, even at other resolutions
-	rect[0] = width - rect[0];
-	rect[2] = width - rect[2];
-	std::swap(rect[0], rect[2]);
+	if (InputManager::getInstance().toggleState)
+	{
+		RenderManager::getInstance().mirrorRectPosition(__this);
+	}
 }
 
 void __fastcall hkSetLockonRect(void* __this, [[maybe_unused]] int __ecx, float unk)
@@ -134,53 +180,15 @@ void __fastcall hkSetEnemyRect(void* __this, [[maybe_unused]] int __ecx, float u
 // intercept the final render pass before UI is drawn and flip the image
 void __fastcall hkRenderPostProcess(void* __this, [[maybe_unused]] int __edx, void* unk1, void* unk2)
 {
-	int processType = *(int*)((byte*)__this + 0x34);
-	if (processType == 0x1e)
+	if (InputManager::getInstance().toggleState)
 	{
-		// final post processing step before UI is rendered
-
-		RenderManager& rm = RenderManager::getInstance();
-		IDirect3DDevice9* d3dDev = rm.getD3dDevice();
-
-		IDirect3DSurface9* renderTarget = nullptr;
-		d3dDev->GetRenderTarget(0, &renderTarget);
-
-		// render to our own target
-		d3dDev->SetRenderTarget(0, rm.getFlipSurface());
-
-		oRenderPostProcess(__this, unk1, unk2);
-
-		// save state info
-		rm.getFlipStateBlock()->Capture();
-		IDirect3DVertexDeclaration9* prevVertDecl;
-		d3dDev->GetVertexDeclaration(&prevVertDecl);
-
-		d3dDev->SetVertexDeclaration(rm.getScreenQuadVertexDeclaration());
-		d3dDev->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
-		d3dDev->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE);
-
-		d3dDev->SetRenderTarget(0, renderTarget);
-
-		D3DXHANDLE frameTexHandle = rm.getFlipEffect()->GetParameterByName(NULL, "frameTex2D");
-		rm.getFlipEffect()->SetTexture(frameTexHandle, rm.getFlipTexture());
-
-		// draw flipped image to original render target
-		UINT passes;
-		rm.getFlipEffect()->Begin(&passes, 0);
-		rm.getFlipEffect()->BeginPass(0);
-		d3dDev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, rm.getScreenQuad(), sizeof(rm.getScreenQuad()[0]));
-		rm.getFlipEffect()->EndPass();
-		rm.getFlipEffect()->End();
-
-		// restore state info
-		d3dDev->SetVertexDeclaration(prevVertDecl);
-		rm.getFlipStateBlock()->Apply();
-
-		// clean up
-		renderTarget->Release();
+		int processType = *(int*)((byte*)__this + 0x34);
+		if (processType == 0x1e)
+		{
+			RenderManager::getInstance().mirrorScreen(__this, unk1, unk2);
+			return;
+		}
 	}
-	else
-	{
-		oRenderPostProcess(__this, unk1, unk2);
-	}
+
+	oRenderPostProcess(__this, unk1, unk2);
 }

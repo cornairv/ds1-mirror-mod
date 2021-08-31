@@ -1,16 +1,17 @@
 #include "pch.h"
 #include "logger.h"
+#include "config.h"
 #include <iomanip>
 
-bool Logger::enabled = true;
+bool Logger::enabled = false;
 
 Logger::Logger()
 {
-	std::string filename = "mirror-mod.log";
-	console = true;
-
-	logOut.open(filename, std::ios_base::app);
-	if (console)
+	if (!config.logFile.empty())
+	{
+		logOut.open(config.logFile, std::ios_base::app);
+	}
+	if (config.showConsole)
 	{
 		AllocConsole();
 	}
@@ -55,7 +56,7 @@ void Logger::flush()
 	prefixSstream << sstream.str() << "\n";
 	logOut << prefixSstream.str();
 	logOut.flush();
-	if (console)
+	if (config.showConsole)
 	{
 		WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), prefixSstream.str().c_str(), prefixSstream.str().length(), nullptr, nullptr);
 	}

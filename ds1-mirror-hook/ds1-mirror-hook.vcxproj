@@ -184,6 +184,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="addresses.h" />
+    <ClInclude Include="config.h" />
     <ClInclude Include="d3d9.h" />
     <ClInclude Include="d3d9dev.h" />
     <ClInclude Include="d3d9int.h" />
@@ -200,6 +201,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="addresses.cpp" />
+    <ClCompile Include="config.cpp" />
     <ClCompile Include="d3d9.cpp" />
     <ClCompile Include="d3d9dev.cpp" />
     <ClCompile Include="d3d9int.cpp" />
@@ -221,9 +223,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="dinput8.def" />
+    <None Include="dsmirror.ini" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="flip.fx">
+    <FxCompile Include="mirror.fx">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">4.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>

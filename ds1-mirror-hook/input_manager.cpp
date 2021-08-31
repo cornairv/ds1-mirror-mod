@@ -5,107 +5,173 @@
 #include "logger.h"
 #include <map>
 #include <dinput.h>
+#include <vector>
+#include "config.h"
+
+KeyWrapper::KeyWrapper(int keyCode) : keyCode(keyCode)
+{
+	down = prevDown = GetKeyState(keyCode) & 0x8000;
+}
+
+void KeyWrapper::update()
+{
+	bool state = GetKeyState(keyCode) & 0x8000;
+	pressed = state && !down;
+	released = !state && down;
+	down = state;
+}
 
 void InputManager::modifyDirectInput(DWORD cbData, LPVOID lpvData)
 {
-	if (cbData == sizeof(DIMOUSESTATE2))
+	if (toggleState)
 	{
-		DIMOUSESTATE2* state = (DIMOUSESTATE2*)lpvData;
-		leftClicking = state->rgbButtons[0];
-		rightClicking = state->rgbButtons[1];
-
-		if (invertDirections)
+		if (cbData == sizeof(DIMOUSESTATE2))
 		{
-			state->lX *= -1;
+			modifyMouseInput((DIMOUSESTATE2*)lpvData);
 		}
-		if (invertAttacks && !isMenuOpen())
+		else if (cbData == 256)
 		{
-			state->rgbButtons[0] = 0;
-			state->rgbButtons[1] = 0;
+			modifyKeyboardInput((byte*)lpvData);
 		}
 	}
-	else if (cbData == 256)
+
+	if (cbData == 256)
 	{
-		byte* state = (byte*)lpvData;
-		if (invertAttacks && !isMenuOpen())
+		// toggle mirror mode
+		toggleKey.update();
+		if (toggleKey.pressed)
 		{
-			if (leftClicking)
+			toggleState = !toggleState;
+			for (int i = 0; i < 4; i++)
 			{
-				pressBoundKey(state, 17); // gets swapped to 19 (block) in modifyKeyBinds
-			}
-			if (rightClicking)
-			{
-				pressBoundKey(state, 18); // gets swapped to 20 (parry)
+				std::swap(leftWeaponCoords[i], rightWeaponCoords[i]);
 			}
 		}
 	}
 }
 
-void InputManager::pressBoundKey(byte* keyboardState, int bindIndex)
+void InputManager::modifyMouseInput(DIMOUSESTATE2* state)
 {
-	byte key, modifierKey;
-	getKeyBinding(bindIndex, key, modifierKey);
-	auto it = keyMap.find(key);
-	if (it != keyMap.end())
+	leftClicking = state->rgbButtons[0];
+	rightClicking = state->rgbButtons[1];
+
+	if (config.invertDirections)
 	{
-		keyboardState[it->second] = 0x80;
+		state->lX *= -1;
 	}
-	it = modifierKeyMap.find(modifierKey);
-	if (it != keyMap.end())
+
+	// suppress mouse input
+	if (config.invertAttacks && !isMenuOpen())
 	{
-		keyboardState[it->second] = 0x80;
+		state->rgbButtons[0] = 0;
+		state->rgbButtons[1] = 0;
+	}
+}
+
+void InputManager::modifyKeyboardInput(byte* state)
+{
+	std::vector<byte> keysToPress, keysToRelease;
+
+	if (!isMenuOpen())
+	{
+		// swap keyboard inputs
+		std::vector<std::pair<byte, byte>> keybindSwapPairs; // indices of keybindings to swap
+		if (config.invertAttacks)
+		{
+			keybindSwapPairs.push_back({ 17, 19 }); // attack/block
+			keybindSwapPairs.push_back({ 18, 20 }); // heavy attack/parry
+
+			// swap mouse input to keyboard
+			byte key, modifier;
+			if (leftClicking && getKeyBinding(19, key, modifier)) // block
+			{
+				keysToPress.push_back(key);
+				keysToPress.push_back(modifier);
+			}
+			if (rightClicking && getKeyBinding(20, key, modifier)) // parry
+			{
+				keysToPress.push_back(key);
+				keysToPress.push_back(modifier);
+			}
+		}
+		if (config.invertDirections)
+		{
+			keybindSwapPairs.push_back({ 2, 3 });	// run
+			keybindSwapPairs.push_back({ 6, 7 });	// walk
+			keybindSwapPairs.push_back({ 10, 11 });	// camera
+		}
+		if (config.invertWeaponSwitch)
+		{
+			keybindSwapPairs.push_back({ 13, 14 });	// switch weapons
+		}
+		for (std::pair<byte, byte> swapPair : keybindSwapPairs)
+		{
+			byte key1, modifier1, key2, modifier2;
+			if (getKeyBinding(swapPair.first, key1, modifier1) && getKeyBinding(swapPair.second, key2, modifier2))
+			{
+				// make sure both key and modifier are pressed if both are defined
+				if ((key1 == 0 || (state[key1] & 0x80)) && (modifier1 == 0 || (state[modifier1] & 0x80)))
+				{
+					if (key1 != 0) keysToRelease.push_back(key1);
+					if (modifier1 != 0) keysToRelease.push_back(modifier1);
+					if (key2 != 0) keysToPress.push_back(key2);
+					if (modifier2 != 0) keysToPress.push_back(modifier2);
+				}
+
+				// repeat for other binding
+				if ((key2 == 0 || (state[key2] & 0x80)) && (modifier2 == 0 || (state[modifier2] & 0x80)))
+				{
+					if (key2 != 0) keysToRelease.push_back(key2);
+					if (modifier2 != 0) keysToRelease.push_back(modifier2);
+					if (key1 != 0) keysToPress.push_back(key1);
+					if (modifier1 != 0) keysToPress.push_back(modifier1);
+				}
+			}
+		}
+	}
+	for (byte keyToRelease : keysToRelease)
+	{
+		state[keyToRelease] = 0;
+	}
+	for (byte keyToPress : keysToPress)
+	{
+		state[keyToPress] = 0x80;
 	}
 }
 
 void InputManager::modifyGetXInput(XINPUT_STATE* pState)
 {
-	bool menu = isMenuOpen();
-	if (invertDirections)
+	if (toggleState)
 	{
-		safeNegate(pState->Gamepad.sThumbLX);
-		safeNegate(pState->Gamepad.sThumbRX);
-	}
-	if (invertWeaponSwitch && !menu)
-	{
-		swapBits(pState->Gamepad.wButtons, XINPUT_GAMEPAD_DPAD_LEFT, XINPUT_GAMEPAD_DPAD_RIGHT);
-	}
-	if (invertAttacks && !menu)
-	{
-		swapBits(pState->Gamepad.wButtons, XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER);
-		std::swap(pState->Gamepad.bLeftTrigger, pState->Gamepad.bRightTrigger);
+		bool menu = isMenuOpen();
+		if (config.invertDirections)
+		{
+			safeNegate(pState->Gamepad.sThumbLX);
+			safeNegate(pState->Gamepad.sThumbRX);
+		}
+		if (config.invertWeaponSwitch && !menu)
+		{
+			swapBits(pState->Gamepad.wButtons, XINPUT_GAMEPAD_DPAD_LEFT, XINPUT_GAMEPAD_DPAD_RIGHT);
+		}
+		if (config.invertAttacks && !menu)
+		{
+			swapBits(pState->Gamepad.wButtons, XINPUT_GAMEPAD_LEFT_SHOULDER, XINPUT_GAMEPAD_RIGHT_SHOULDER);
+			std::swap(pState->Gamepad.bLeftTrigger, pState->Gamepad.bRightTrigger);
+		}
 	}
 }
 
 void InputManager::modifySetXInput(XINPUT_VIBRATION* pVibration)
 {
-	std::swap(pVibration->wLeftMotorSpeed, pVibration->wRightMotorSpeed);
-}
-
-void InputManager::modifyKeybinds(int* keybinds)
-{
-	// these are separate keybinds from menu controls, so we don't have to
-	// check whether a menu is open
-
-	if (invertDirections)
+	if (toggleState)
 	{
-		std::swap(keybinds[2], keybinds[3]);	// run
-		std::swap(keybinds[6], keybinds[7]);	// walk
-		std::swap(keybinds[10], keybinds[11]);	// camera
-	}
-	if (invertWeaponSwitch)
-	{
-		std::swap(keybinds[13], keybinds[14]);	// switch weapons
-	}
-	if (invertAttacks)
-	{
-		std::swap(keybinds[17], keybinds[19]);	// attack/block
-		std::swap(keybinds[18], keybinds[20]);	// heavy attack/parry
+		std::swap(pVibration->wLeftMotorSpeed, pVibration->wRightMotorSpeed);
 	}
 }
 
 void InputManager::modifyWeaponIcons(void* obj)
 {
-	if (invertWeaponSwitch)
+	if (toggleState && config.invertWeaponSwitch)
 	{
 		byte* bytes = (byte*)obj;
 		int id = *(int*)(bytes + 0xf4);
@@ -116,9 +182,10 @@ void InputManager::modifyWeaponIcons(void* obj)
 		}
 		else if (id == 3) // left weapon
 		{
+			leftWeaponCoords = coords;
 			for (int i = 0; i < 4; i++)
 			{
-				std::swap(coords[i], rightWeaponCoords[i]);
+				std::swap(leftWeaponCoords[i], rightWeaponCoords[i]);
 			}
 		}
 	}
@@ -128,21 +195,6 @@ void __fastcall hkSetup_FrpgMenuDlgFeShortcut(void* __this, [[maybe_unused]] int
 {
 	oSetup_FrpgMenuDlgFeShortcut(__this, unk1, unk2, unk3);
 	InputManager::getInstance().modifyWeaponIcons(__this);
-}
-
-int __fastcall hkPropagateKeybinds(void* inputStructure)
-{
-	int* keybinds = (int*)(inputStructure)+1;
-
-	// need to unswap keybinds before original function or else it thinks
-	// controls have changed and updates the config file
-	InputManager::getInstance().modifyKeybinds(keybinds);
-
-	int ret = oPropagateKeybinds(inputStructure);
-
-	InputManager::getInstance().modifyKeybinds(keybinds);
-
-	return ret;
 }
 
 bool isMenuOpen()
@@ -183,12 +235,45 @@ unsigned int getIngameTime()
 	return *(unsigned int*)(gameDataManager + 0x68);
 }
 
-void getKeyBinding(int index, byte& key, byte& modifier)
+// get the DirectInput keycodes bound to in-game actions
+bool InputManager::getKeyBinding(int index, byte& key, byte& modifier)
 {
 	byte* gameDataManager = *pGameDataManager;
 	short* bindings = (short*)(*(byte**)(gameDataManager + 0x34) + 0x1a);
-	key = static_cast<byte>(bindings[index * 2]);
-	modifier = static_cast<byte>(bindings[index * 2 + 1]);
+	byte keyVK = static_cast<byte>(bindings[index * 2]);
+	byte modifierVK = static_cast<byte>(bindings[index * 2 + 1]);
+
+	key = 0;
+	modifier = 0;
+	if (keyVK != 0)
+	{
+		auto it = keyMap.find(keyVK);
+		if (it == keyMap.end())
+		{
+			LOG << "DirectInput mapping for key 0x" << std::hex << (int)keyVK << " not found" << LogEndl::ERRO;
+			return false;
+		}
+		else
+		{
+			key = it->second;
+		}
+
+	}
+	if (modifierVK != 0)
+	{
+		auto it = modifierKeyMap.find(modifierVK);
+		if (it == modifierKeyMap.end())
+		{
+			LOG << "DirectInput mapping for modifier key 0x" << std::hex << (int)modifierVK << " not found" << LogEndl::ERRO;
+			return false;
+		}
+		else
+		{
+			modifier = it->second;
+		}
+	}
+
+	return true;
 }
 
 std::map<byte, byte> InputManager::keyMap =

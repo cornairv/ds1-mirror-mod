@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <INIReader.h>
 
 enum class LogEndl { INFO, ERRO, WARN, ENDL };
 
@@ -29,7 +30,6 @@ private:
 	std::ofstream logOut;
 	std::stringstream sstream;
 	std::stringstream prefixSstream;
-	bool console;
 
 	void flush();
 };

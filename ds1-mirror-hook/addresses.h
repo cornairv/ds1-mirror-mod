@@ -20,5 +20,8 @@ extern tSetup_FrpgMenuDlgFeShortcut oSetup_FrpgMenuDlgFeShortcut;
 typedef int(__stdcall* tGetMenuState)();
 extern tGetMenuState oGetMenuState;
 
+typedef void(__stdcall* tVoidFunc)();
+extern tVoidFunc oOncePerFrame;
+
 extern byte** pMenuManager;
 extern byte** pGameDataManager;

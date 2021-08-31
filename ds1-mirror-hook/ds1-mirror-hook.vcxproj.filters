@@ -57,6 +57,9 @@
     <ClInclude Include="util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -101,13 +104,17 @@
     <ClCompile Include="addresses.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="dinput8.def">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="dsmirror.ini" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="flip.fx" />
+    <FxCompile Include="mirror.fx" />
   </ItemGroup>
 </Project>

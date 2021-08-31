@@ -25,7 +25,7 @@ void setupHooks()
 	ATTACH_HOOK(SetPhantomRect);
 
 	//input
-	ATTACH_HOOK(PropagateKeybinds);
+	//ATTACH_HOOK(PropagateKeybinds);
 	ATTACH_HOOK(Setup_FrpgMenuDlgFeShortcut);
 
 	DetourTransactionCommit();
