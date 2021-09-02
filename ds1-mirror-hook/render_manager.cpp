@@ -9,38 +9,39 @@ void RenderManager::mirrorScreen(void* __this, void* unk1, void* unk2)
 	// final post processing step before UI is rendered
 
 	IDirect3DSurface9* renderTarget = nullptr;
-	hkD3dDev->GetRenderTarget(0, &renderTarget);
+	CHECK(hkD3dDev->GetRenderTarget(0, &renderTarget));
 
 	// render to our own target
-	hkD3dDev->SetRenderTarget(0, getFlipSurface());
+	CHECK(hkD3dDev->SetRenderTarget(0, getFlipSurface()));
 
 	oRenderPostProcess(__this, unk1, unk2);
 
 	// save state info
-	getFlipStateBlock()->Capture();
+	CHECK(getFlipStateBlock()->Capture());
 	IDirect3DVertexDeclaration9* prevVertDecl;
-	hkD3dDev->GetVertexDeclaration(&prevVertDecl);
+	CHECK(hkD3dDev->GetVertexDeclaration(&prevVertDecl));
 
-	hkD3dDev->SetVertexDeclaration(getScreenQuadVertexDeclaration());
-	hkD3dDev->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
-	hkD3dDev->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE);
+	CHECK(hkD3dDev->SetVertexDeclaration(getScreenQuadVertexDeclaration()));
+	CHECK(hkD3dDev->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE));
+	CHECK(hkD3dDev->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE));
 
-	hkD3dDev->SetRenderTarget(0, renderTarget);
+	CHECK(hkD3dDev->SetRenderTarget(0, renderTarget));
 
 	D3DXHANDLE frameTexHandle = getFlipEffect()->GetParameterByName(NULL, "frameTex2D");
-	getFlipEffect()->SetTexture(frameTexHandle, getFlipTexture());
+	CHECK_TRUE(frameTexHandle != nullptr);
+	CHECK(getFlipEffect()->SetTexture(frameTexHandle, getFlipTexture()));
 
 	// draw flipped image to original render target
 	UINT passes;
-	getFlipEffect()->Begin(&passes, 0);
-	getFlipEffect()->BeginPass(0);
-	hkD3dDev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, getScreenQuad(), sizeof(getScreenQuad()[0]));
-	getFlipEffect()->EndPass();
-	getFlipEffect()->End();
+	CHECK(getFlipEffect()->Begin(&passes, 0));
+	CHECK(getFlipEffect()->BeginPass(0));
+	CHECK(hkD3dDev->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 1, getScreenQuad(), sizeof(getScreenQuad()[0])));
+	CHECK(getFlipEffect()->EndPass());
+	CHECK(getFlipEffect()->End());
 
 	// restore state info
-	hkD3dDev->SetVertexDeclaration(prevVertDecl);
-	getFlipStateBlock()->Apply();
+	CHECK(hkD3dDev->SetVertexDeclaration(prevVertDecl));
+	CHECK(getFlipStateBlock()->Apply());
 
 	// clean up
 	renderTarget->Release();
@@ -79,11 +80,11 @@ IDirect3DTexture9* RenderManager::getFlipTexture()
 	if (!flipTexture)
 	{
 		IDirect3DSurface9* renderTarget;
-		hkD3dDev->GetRenderTarget(0, &renderTarget);
+		CHECK(hkD3dDev->GetRenderTarget(0, &renderTarget));
 		D3DSURFACE_DESC desc;
-		renderTarget->GetDesc(&desc);
+		CHECK(renderTarget->GetDesc(&desc));
 
-		hkD3dDev->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, desc.Format, desc.Pool, &flipTexture, NULL);
+		CHECK(hkD3dDev->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, desc.Format, desc.Pool, &flipTexture, NULL));
 
 		renderTarget->Release();
 	}
@@ -98,7 +99,7 @@ IDirect3DSurface9* RenderManager::getFlipSurface()
 		{
 			getFlipTexture();
 		}
-		flipTexture->GetSurfaceLevel(0, &flipSurface);
+		CHECK(flipTexture->GetSurfaceLevel(0, &flipSurface));
 	}
 	return flipSurface;
 }
@@ -108,7 +109,7 @@ LPD3DXEFFECT RenderManager::getFlipEffect()
 	if (!flipEffect)
 	{
 		LPD3DXBUFFER flipErrors = nullptr;
-		D3DXCreateEffectFromFile(hkD3dDev, L"dsmirror\\mirror.fx", nullptr, NULL, D3DXFX_NOT_CLONEABLE | D3DXSHADER_OPTIMIZATION_LEVEL3, NULL, &flipEffect, &flipErrors);
+		CHECK(D3DXCreateEffectFromFile(hkD3dDev, L"dsmirror\\mirror.fx", nullptr, NULL, D3DXFX_NOT_CLONEABLE | D3DXSHADER_OPTIMIZATION_LEVEL3, NULL, &flipEffect, &flipErrors));
 	}
 	return flipEffect;
 }
@@ -117,7 +118,7 @@ IDirect3DStateBlock9* RenderManager::getFlipStateBlock()
 {
 	if (!flipStateBlock)
 	{
-		hkD3dDev->CreateStateBlock(D3DSBT_ALL, &flipStateBlock);
+		CHECK(hkD3dDev->CreateStateBlock(D3DSBT_ALL, &flipStateBlock));
 	}
 	return flipStateBlock;
 }
@@ -126,7 +127,7 @@ IDirect3DVertexDeclaration9* RenderManager::getScreenQuadVertexDeclaration()
 {
 	if (!screenQuadVertexDeclaration)
 	{
-		hkD3dDev->CreateVertexDeclaration(screenQuadVertexElements, &screenQuadVertexDeclaration);
+		CHECK(hkD3dDev->CreateVertexDeclaration(screenQuadVertexElements, &screenQuadVertexDeclaration));
 	}
 	return screenQuadVertexDeclaration;
 }

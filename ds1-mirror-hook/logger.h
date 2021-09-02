@@ -27,6 +27,8 @@ public:
 	static bool enabled;
 
 private:
+	void clearBuffer();
+
 	std::ofstream logOut;
 	std::stringstream sstream;
 	std::stringstream prefixSstream;
@@ -49,5 +51,12 @@ void MyDebugBreak();
 	do { \
 		long hr = (long)(expr); \
 		if (hr != 0) \
-			LOG << "(" << __FILE__ << ":" << ##__LINE__ << ") Expression returned " << hr << ": " << #expr << LogEndl::ERRO; \
+			LOG << "(" << __FILE__ << ":" << ##__LINE__ << ") Expression returned " << hr << ": " << #expr << LogEndl::WARN; \
+	} while (0)
+
+#define CHECK_TRUE(expr) \
+	do { \
+		bool hr = (bool)(expr); \
+		if (hr != true) \
+			LOG << "(" << __FILE__ << ":" << ##__LINE__ << ") Expression returned false: " << #expr << LogEndl::WARN; \
 	} while (0)

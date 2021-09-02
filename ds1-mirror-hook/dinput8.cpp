@@ -8,7 +8,7 @@ HRESULT WINAPI DirectInput8Create(HINSTANCE inst_handle, DWORD version, const II
 
     if (hr == 0)
     {
-        LOG << "DirectInput8Create" << LogEndl::INFO;
+        LOG << "hooked DirectInput8Create" << LogEndl::INFO;
         *out_wrapper = new hkIDirectInput8(*(IDirectInput8**)out_wrapper);
     }
 

@@ -28,12 +28,12 @@ int __stdcall hkEventSystem_Create(void** eventSystem)
 	// FMOD_EventSystem_Set3DListenerAttributes isn't exported so grab it here
 	byte* vtable = **(byte***)eventSystem;
 	oEventSystem_Set3DListenerAttributes = *(tEventSystem_Set3DListenerAttributes*)(vtable + 0x88);
-	LOG << "addr: " << std::hex << oEventSystem_Set3DListenerAttributes << LogEndl::INFO;
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)oEventSystem_Set3DListenerAttributes, hkEventSystem_Set3DListenerAttributes);
-	DetourTransactionCommit();
-	LOG << "Hooked FMOD_EventSystem_Set3DListenerAttributes" << LogEndl::INFO;
+
+	CHECK(DetourTransactionBegin());
+	CHECK(DetourUpdateThread(GetCurrentThread()));
+	CHECK(DetourAttach(&(PVOID&)oEventSystem_Set3DListenerAttributes, hkEventSystem_Set3DListenerAttributes));
+	CHECK(DetourTransactionCommit());
+	LOG << "Hooked EventSystem_Set3DListenerAttributes" << LogEndl::INFO;
 
 	return ret;
 }

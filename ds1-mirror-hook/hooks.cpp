@@ -9,12 +9,12 @@
 #include "logger.h"
 #include <detours/detours.h>
 
-#define ATTACH_HOOK(name) DetourAttach(&(PVOID&)o##name, hk##name)
+#define ATTACH_HOOK(name) CHECK(DetourAttach(&(PVOID&)o##name, hk##name))
 
 void setupHooks()
 {
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
+	CHECK(DetourTransactionBegin());
+	CHECK(DetourUpdateThread(GetCurrentThread()));
 
 	// rendering
 	ATTACH_HOOK(Direct3DCreate9);
@@ -31,5 +31,5 @@ void setupHooks()
 	// audio
 	ATTACH_HOOK(EventSystem_Create);
 
-	DetourTransactionCommit();
+	CHECK(DetourTransactionCommit());
 }

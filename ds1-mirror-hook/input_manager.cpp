@@ -171,18 +171,18 @@ void InputManager::modifySetXInput(XINPUT_VIBRATION* pVibration)
 
 void InputManager::modifyWeaponIcons(void* obj)
 {
-	if (toggleState && config.invertWeaponSwitch)
+	byte* bytes = (byte*)obj;
+	int id = *(int*)(bytes + 0xf4);
+	float* coords = (float*)(bytes + 0x78);
+	if (id == 2) // right weapon
 	{
-		byte* bytes = (byte*)obj;
-		int id = *(int*)(bytes + 0xf4);
-		float* coords = (float*)(bytes + 0x78);
-		if (id == 2) // right weapon
+		rightWeaponCoords = coords;
+	}
+	else if (id == 3) // left weapon
+	{
+		leftWeaponCoords = coords;
+		if (toggleState && config.invertWeaponSwitch)
 		{
-			rightWeaponCoords = coords;
-		}
-		else if (id == 3) // left weapon
-		{
-			leftWeaponCoords = coords;
 			for (int i = 0; i < 4; i++)
 			{
 				std::swap(leftWeaponCoords[i], rightWeaponCoords[i]);
@@ -250,7 +250,7 @@ bool InputManager::getKeyBinding(int index, byte& key, byte& modifier)
 		auto it = keyMap.find(keyVK);
 		if (it == keyMap.end())
 		{
-			LOG << "DirectInput mapping for key 0x" << std::hex << (int)keyVK << " not found" << LogEndl::ERRO;
+			LOG << "DirectInput mapping for key 0x" << std::hex << (int)keyVK << " not found" << LogEndl::WARN;
 			return false;
 		}
 		else
@@ -264,7 +264,7 @@ bool InputManager::getKeyBinding(int index, byte& key, byte& modifier)
 		auto it = modifierKeyMap.find(modifierVK);
 		if (it == modifierKeyMap.end())
 		{
-			LOG << "DirectInput mapping for modifier key 0x" << std::hex << (int)modifierVK << " not found" << LogEndl::ERRO;
+			LOG << "DirectInput mapping for modifier key 0x" << std::hex << (int)modifierVK << " not found" << LogEndl::WARN;
 			return false;
 		}
 		else
