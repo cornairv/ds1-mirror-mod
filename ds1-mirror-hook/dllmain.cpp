@@ -5,6 +5,8 @@
 #include "dinput8.h"
 #include "config.h"
 #include "logger.h"
+#include <wincrypt.h>
+#include <DbgHelp.h>
 
 tDirect3DCreate9 oDirect3DCreate9 = Direct3DCreate9;
 tXInputGetState oXInputGetState = XInputGetState;
@@ -15,22 +17,33 @@ bool APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, [[maybe_unused]
 {
     if (ul_reason_for_call == DLL_PROCESS_ATTACH)
     {
+        DisableThreadLibraryCalls(hModule);
+        
         configure("dsmirror\\dsmirror.ini");
 
-        DisableThreadLibraryCalls(hModule);
         LOG << "Hooked dinput8.dll" << LogEndl::INFO;
 
-        DisableThreadLibraryCalls(hModule);
-        wchar_t DInputDllName[MAX_PATH];
-        GetSystemDirectory(DInputDllName, MAX_PATH);
-        wcscat_s(DInputDllName, L"\\dinput8.dll");
-        HMODULE DInput8DLL = LoadLibrary(DInputDllName);
-        if (!DInput8DLL)
+        HMODULE dinputDll;
+        std::string dinputDllName;
+        if (config.loadDll.empty())
         {
-            LOG << "Failed to load " << DInputDllName << LogEndl::INFO;
+            char dinputDllPath[MAX_PATH];
+            GetSystemDirectoryA(dinputDllPath, MAX_PATH);
+            dinputDllName = std::string(dinputDllPath) + "\\dinput8.dll";
+        }
+        else
+        {
+            dinputDllName = config.loadDll;
+        }
+        LOG << "Loading DLL: " << dinputDllName.c_str() << LogEndl::INFO;
+        dinputDll = LoadLibraryA(dinputDllName.c_str());
+        if (!dinputDll)
+        {
+            LOG << "Failed to load " << dinputDllName.c_str() << LogEndl::INFO;
             return false;
         }
-        oDirectInput8Create = (tDirectInput8Create)GetProcAddress(DInput8DLL, "DirectInput8Create");
+
+        oDirectInput8Create = (tDirectInput8Create)GetProcAddress(dinputDll, "DirectInput8Create");
 
         setupHooks();
 

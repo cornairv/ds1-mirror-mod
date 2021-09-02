@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pch.h"
+
 // rendering
 typedef void(__thiscall* tSetFloatingRect)(void*, float);
 extern tSetFloatingRect oSetLockonRect;
@@ -25,3 +27,9 @@ extern tVoidFunc oOncePerFrame;
 
 extern byte** pMenuManager;
 extern byte** pGameDataManager;
+
+
+// audio
+typedef int(__stdcall* tEventSystem_Create)(void**);
+extern tEventSystem_Create oEventSystem_Create;
+

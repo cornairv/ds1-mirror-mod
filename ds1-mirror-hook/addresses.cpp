@@ -16,3 +16,6 @@ ADDRESS(tPropagateKeybinds, oPropagateKeybinds, 0x00f73ff0);
 ADDRESS(tVoidFunc, oOncePerFrame, 0x00BAC020);
 ADDRESS(byte**, pMenuManager, 0x013786d0);
 ADDRESS(byte**, pGameDataManager, 0x01378700);
+
+// audio
+ADDRESS(tEventSystem_Create, oEventSystem_Create, 0x006ed0ee);
