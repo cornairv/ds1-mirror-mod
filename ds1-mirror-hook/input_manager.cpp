@@ -42,9 +42,12 @@ void InputManager::modifyDirectInput(DWORD cbData, LPVOID lpvData)
 		if (toggleKey.pressed)
 		{
 			toggleState = !toggleState;
-			for (int i = 0; i < 4; i++)
+			if (leftWeaponCoords && rightWeaponCoords)
 			{
-				std::swap(leftWeaponCoords[i], rightWeaponCoords[i]);
+				for (int i = 0; i < 4; i++)
+				{
+					std::swap(leftWeaponCoords[i], rightWeaponCoords[i]);
+				}
 			}
 		}
 	}
