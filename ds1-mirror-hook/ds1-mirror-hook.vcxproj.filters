@@ -123,4 +123,7 @@
   <ItemGroup>
     <FxCompile Include="mirror.fx" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="readme.txt" />
+  </ItemGroup>
 </Project>
